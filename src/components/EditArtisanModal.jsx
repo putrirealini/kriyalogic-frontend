@@ -10,7 +10,8 @@ const EditArtisanModal = ({ isOpen, onClose, onSuccess, artisan }) => {
         phoneNumber: '',
         commissionRate: '',
         bankAccount: '',
-        address: ''
+        address: '',
+        status: 'active'
     });
 
     useEffect(() => {
@@ -20,7 +21,8 @@ const EditArtisanModal = ({ isOpen, onClose, onSuccess, artisan }) => {
                 phoneNumber: artisan.phoneNumber || '',
                 commissionRate: artisan.commissionRate || '',
                 bankAccount: artisan.bankAccount || '',
-                address: artisan.address || ''
+                address: artisan.address || '',
+                status: artisan.status || 'active'
             });
         }
     }, [artisan]);
@@ -157,6 +159,22 @@ const EditArtisanModal = ({ isOpen, onClose, onSuccess, artisan }) => {
                             required
                             className="w-full px-4 py-2.5 text-sm border border-gray-300 rounded-xl focus:outline-none focus:border-primary focus:ring-1 focus:ring-primary transition-colors"
                         />
+                    </div>
+
+                    {/* Status */}
+                    <div className="space-y-1">
+                        <label className="text-sm font-semibold text-gray-900">
+                            Status
+                        </label>
+                        <select
+                            name="status"
+                            value={formData.status}
+                            onChange={handleChange}
+                            className="w-full px-4 py-2 border border-gray-300 rounded-xl focus:outline-none focus:border-primary focus:ring-1 focus:ring-primary transition-colors text-sm bg-white"
+                        >
+                            <option value="active">Active</option>
+                            <option value="inactive">Inactive</option>
+                        </select>
                     </div>
 
                     {/* Buttons */}

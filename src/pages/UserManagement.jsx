@@ -153,12 +153,12 @@ const UserManagement = () => {
                                                 >
                                                     <Pencil size={18} />
                                                 </button>
-                                                <button
+                                                {/* <button
                                                     onClick={() => handleDeleteClick(item.id || item._id)}
                                                     className="text-red-600 hover:text-red-800"
                                                 >
                                                     <Trash2 size={18} />
-                                                </button>
+                                                </button> */}
                                             </div>
                                         </td>
                                     </tr>

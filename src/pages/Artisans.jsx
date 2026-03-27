@@ -63,7 +63,7 @@ const Artisans = () => {
     return (
         <div className="flex flex-col lg:flex-row h-screen md:px-6">
             {/* Left Content */}
-            <div className="w-full lg:w-[65%] overflow-y-auto">
+            <div className="w-full lg:w-[60%] overflow-y-auto">
                 <div className='p-4'>
                     <img src="/hero-image-artisan-page.png" alt="" className='w-full h-auto object-contain' />
                 </div>

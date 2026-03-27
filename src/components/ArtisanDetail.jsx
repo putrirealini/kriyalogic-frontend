@@ -2,8 +2,14 @@ import React from 'react';
 import { Phone, MapPin, Percent, Landmark, BoxIcon, BoxesIcon, X } from 'lucide-react';
 
 const ArtisanDetail = ({ selectedArtisan, onClose }) => {
+    const formatRupiah = (value) => {
+        const number = Number(value || 0);
+
+        return `Rp. ${number.toLocaleString('id-ID')}`;
+    };
+
     return (
-        <div className={`w-full lg:w-[35%] p-4 h-full overflow-y-auto ${selectedArtisan ? 'fixed inset-0 z-50 bg-white lg:static lg:bg-transparent' : 'hidden lg:block'}`}>
+        <div className={`w-full lg:w-[40%] p-4 h-full ${selectedArtisan ? 'fixed inset-0 z-50 bg-white lg:static lg:bg-transparent' : 'hidden lg:block'}`}>
             {selectedArtisan ? (
                 <div className='border-4 border-primary rounded-3xl px-5 py-10 relative'>
                     <button 
@@ -12,7 +18,7 @@ const ArtisanDetail = ({ selectedArtisan, onClose }) => {
                     >
                         <X size={20} />
                     </button>
-                    <h2 className='text-lg mb-5'>Detail Artisan {selectedArtisan.fullName || '-'}</h2>
+                    <h2 className='text-[24px] font-bold text-[#5A3B2D] mb-5'>Detail Artisan {selectedArtisan.fullName || '-'}</h2>
 
                     <div className='bg-primary rounded-xl p-2'>
                         <div className='text-[#E7E5DB] flex gap-2 py-2 px-4 items-center'>
@@ -34,18 +40,21 @@ const ArtisanDetail = ({ selectedArtisan, onClose }) => {
                     </div>
 
                     <div className='flex flex-row gap-2 mt-4 justify-between'>
-                        <div className='bg-primary rounded-md text-white flex items-center gap-2 p-4 w-full'>
-                            <BoxIcon className="w-8 h-8" />
+                        <div className='bg-primary rounded-md text-white flex items-center gap-2 p-4 w-1/2'>
+                            <BoxIcon className="w-9 h-9" />
                             <div className='flex flex-col gap-1'>
-                                <h3 className="text-xs font-normal text-[#E7E5DB]">Products</h3>
-                                <p className="text-sm font-semibold">{selectedArtisan.productsCount || '-'}</p>
+                                <h3 className="text-[11px] font-normal text-[#E7E5DB]">Total Products</h3>
+                                <p className="text-sm font-semibold">{selectedArtisan.productCount || '-'}</p>
                             </div>
                         </div>
-                        <div className='bg-primary rounded-md text-white flex items-center gap-2 p-4 w-full'>
-                            <BoxesIcon className="w-8 h-8" />
+                        <div className='bg-primary rounded-md text-white flex items-center gap-2 p-4 w-1/2'
+                        onClick={() => window.location.href = `/dashboard/partners/artisans/commission/${selectedArtisan._id}`}
+                        style={{ cursor: 'pointer' }}
+                        >
+                            <BoxesIcon className="w-9 h-9" />
                             <div className='flex flex-col gap-1'>
-                                <h3 className="text-xs font-normal text-[#E7E5DB]">Pending Payout</h3>
-                                <p className="text-sm font-semibold">{selectedArtisan.pendingPayout || '-'}</p>
+                                <h3 className="text-[11px] font-normal text-[#E7E5DB]">Pending Payout</h3>
+                                <p className="text-sm font-semibold">{formatRupiah(selectedArtisan?.totalPendingPayout)}</p>
                             </div>
                         </div>
                     </div>
@@ -62,8 +71,8 @@ const ArtisanDetail = ({ selectedArtisan, onClose }) => {
                                 </tr>
                             </thead>
                             <tbody>
-                                {(selectedArtisan.portfolio || []).length > 0 ? (
-                                    selectedArtisan.portfolio.map((item, index) => (
+                                {(selectedArtisan.products || []).length > 0 ? (
+                                    selectedArtisan.products.map((item, index) => (
                                         <tr key={index} className="bg-white">
                                             <td className="px-2 py-1 border border-gray-600 text-center text-gray-700 text-xs">{item.code || '-'}</td>
                                             <td className="px-2 py-1 border border-gray-600 text-left text-gray-700 text-xs">{item.name || '-'}</td>

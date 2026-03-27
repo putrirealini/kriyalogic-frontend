@@ -81,7 +81,6 @@ export const AuthProvider = ({ children }) => {
     const verifyToken = () => {
       const storedToken = localStorage.getItem('token');
       if (storedToken && checkTokenExpiration(storedToken)) {
-        console.log('Token expired, logging out...');
         logout();
       }
     };

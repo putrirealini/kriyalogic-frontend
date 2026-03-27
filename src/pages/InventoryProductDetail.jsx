@@ -67,22 +67,22 @@ const InventoryProductDetail = () => {
         const normalized = (status || '').toLowerCase();
 
         if (normalized === 'available') {
-            return 'bg-green-400 text-[#14361e]';
+            return 'bg-green-400 text-[#14361e] text-[14px]';
         }
 
         if (normalized === 'sold') {
-            return 'bg-red-400 text-[#4a1212]';
+            return 'bg-red-400 text-white text-[14px]';
         }
 
         if (normalized === 'reserved') {
-            return 'bg-yellow-300 text-[#4e3b00]';
+            return 'bg-yellow-300 text-[#4e3b00] text-[14px]';
         }
 
-        return 'bg-gray-300 text-gray-700';
+        return 'bg-gray-300 text-gray-700 text-[14px]';
     };
 
     return (
-        <div className="w-full px-4 md:px-10 lg:px-14 py-6">
+        <div className="w-full px-2 md:px-4 lg:px-6 py-3">
             {loading ? (
                 <div className="text-center py-16 text-gray-500">Loading...</div>
             ) : error ? (
@@ -116,15 +116,16 @@ const InventoryProductDetail = () => {
                         </div>
                     </div>
 
-                    <div className="grid grid-cols-1 xl:grid-cols-[1.1fr_1fr] gap-8">
-                        <div>
-                            <div className="flex flex-col items-center">
-                                <h2 className="text-2xl font-semibold text-[#4F3427] mb-5 text-center">
-                                    {parentProduct.productName} Detail
-                                </h2>
-
-                                <div className="bg-transparent flex flex-col items-center">
-                                    <div className="w-full max-w-[420px] h-[280px] rounded-3xl bg-[#E9ECEF] flex items-center justify-center overflow-hidden mb-8">
+                    <div className="grid grid-cols-1 xl:grid-cols-[420px_1fr] gap-8">
+                        <div className="flex align-center justify-center">
+                            <div className="bg-transparent">
+                                <div>
+                                    <h2 className="text-[24px] font-weight-[500] text-[#4F3427] mb-5">
+                                        {parentProduct.productName} Detail
+                                    </h2>
+                                </div>
+                                <div className="flex flex-col items-center">
+                                    <div className="w-full max-w-[591px] h-[280px] rounded-3xl bg-[#E9ECEF] flex items-center justify-center overflow-hidden mb-8">
                                         {mainImage ? (
                                             <img
                                                 src={mainImage}
@@ -139,32 +140,32 @@ const InventoryProductDetail = () => {
                                         )}
                                     </div>
 
-                                    <div className="grid grid-cols-[170px_1fr] gap-y-4 gap-x-6 max-w-[420px] text-[18px]">
-                                        <div className="text-black font-medium">Category</div>
-                                        <div className="text-right text-black">
+                                    <div className="grid grid-cols-[250px_1fr] gap-y-2 gap-x-1 max-w-[591px] text-[18px]">
+                                        <div className="text-black text-[16px]">Category</div>
+                                        <div className="text-right text-black text-[16px]">
                                             {parentProduct.categoryName || '-'}
                                         </div>
 
-                                        <div className="text-black font-medium">Parent Code</div>
-                                        <div className="text-right text-black">
+                                        <div className="text-black text-[16px]">Parent Code</div>
+                                        <div className="text-right text-black text-[16px]">
                                             {parentProduct.parentCode || '-'}
                                         </div>
 
-                                        <div className="text-black font-medium">Wood Type</div>
-                                        <div className="text-right text-black">
+                                        <div className="text-black text-[16px]">Wood Type</div>
+                                        <div className="text-right text-black text-[16px]">
                                             {woodTypeText}
                                         </div>
 
-                                        <div className="text-black font-medium">Description</div>
-                                        <div className="text-right text-black leading-7">
+                                        <div className="text-black text-[16px]">Description</div>
+                                        <div className="text-right text-black text-[16px]">
                                             {parentProduct.description || '-'}
                                         </div>
 
-                                        <div className="text-black font-medium">Total Pieces</div>
-                                        <div className="text-right text-black">{totalPieces}</div>
+                                        <div className="text-black text-[16px]">Total Pieces</div>
+                                        <div className="text-right text-black text-[16px]">{totalPieces}</div>
 
-                                        <div className="text-black font-medium">Available Pieces</div>
-                                        <div className="text-right text-black">{availablePieces}</div>
+                                        <div className="text-black text-[16px]">Available Pieces</div>
+                                        <div className="text-right text-black text-[16px]">{availablePieces}</div>
                                     </div>
 
                                     <div className="mt-14">
@@ -181,7 +182,7 @@ const InventoryProductDetail = () => {
                         </div>
 
                         <div className="bg-[#F7F7F7] rounded-3xl p-6 flex flex-col min-h-[680px]">
-                            <h3 className="text-[28px] font-semibold text-[#4F3427] mb-4">
+                            <h3 className="text-[24px] font-weight-[500] text-[#4F3427] mb-4">
                                 Child Product List
                             </h3>
 
@@ -220,18 +221,18 @@ const InventoryProductDetail = () => {
                                                         )}
                                                     </div>
 
-                                                    <span className="truncate text-[#3D312B]">
+                                                    <span className="truncate text-[#3D312B] text-[14px]">
                                                         {item.productName || parentProduct.productName}
                                                     </span>
                                                 </div>
 
-                                                <div className="text-[#3D312B] truncate">
+                                                <div className="text-[#3D312B] truncate text-[14px]">
                                                     {item.childCode || '-'}
                                                 </div>
 
                                                 <div className="flex justify-center">
                                                     <span
-                                                        className={`px-4 py-1 rounded-full text-sm font-medium capitalize ${getStatusBadgeClass(
+                                                        className={`px-4 py-1 rounded-full capitalize ${getStatusBadgeClass(
                                                             item.status
                                                         )}`}
                                                     >

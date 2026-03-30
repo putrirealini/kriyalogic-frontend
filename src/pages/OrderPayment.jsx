@@ -46,9 +46,49 @@ const OrderPaymentPage = () => {
         orderState.paymentMethod || 'qris'
     );
     const [deliveryFee, setDeliveryFee] = useState(0);
+    const [showDeliveryPopup, setShowDeliveryPopup] = useState(false);
+    const [deliveryInput, setDeliveryInput] = useState('');
+
     const [discount, setDiscount] = useState(0);
+    const [showDiscountPopup, setShowDiscountPopup] = useState(false);
+    const [discountInput, setDiscountInput] = useState('');
+    
     const [paidAmountInput, setPaidAmountInput] = useState('');
     const isCashPayment = selectedPaymentMethod === 'cash';
+
+    const handleAddDelivery = () => {
+        setDeliveryInput(deliveryFee ? String(deliveryFee) : '');
+        setShowDeliveryPopup(true);
+    };
+
+    const handleSaveDeliveryFee = () => {
+        const numericValue = Number(String(deliveryInput).replace(/,/g, '').trim());
+
+        if (Number.isNaN(numericValue) || numericValue < 0) {
+            alert('Delivery fee must be a valid number and cannot be negative');
+            return;
+        }
+
+        setDeliveryFee(numericValue);
+        setShowDeliveryPopup(false);
+    };
+
+    const handleAddDiscount = () => {
+        setDiscountInput(discount ? String(discount) : '');
+        setShowDiscountPopup(true);
+    };
+
+    const handleSaveDiscount = () => {
+        const numericValue = Number(String(discountInput).replace(/,/g, '').trim());
+
+        if (Number.isNaN(numericValue) || numericValue < 0) {
+            alert('Discount must be a valid number and cannot be negative');
+            return;
+        }
+
+        setDiscount(numericValue);
+        setShowDiscountPopup(false);
+    };
 
     useEffect(() => {
         const handleClickOutside = (event) => {
@@ -160,26 +200,6 @@ const OrderPaymentPage = () => {
         setPaidAmountInput((prev) => prev.slice(0, -1));
     };
 
-    const handleAddDelivery = () => {
-        const input = window.prompt('Input delivery fee', deliveryFee || 0);
-        if (input === null) return;
-
-        const numericValue = Number(String(input).replace(/,/g, '').trim());
-        if (Number.isNaN(numericValue) || numericValue < 0) return;
-
-        setDeliveryFee(numericValue);
-    };
-
-    const handleAddDiscount = () => {
-        const input = window.prompt('Input discount amount', discount || 0);
-        if (input === null) return;
-
-        const numericValue = Number(String(input).replace(/,/g, '').trim());
-        if (Number.isNaN(numericValue) || numericValue < 0) return;
-
-        setDiscount(numericValue);
-    };
-
     const handlePayNow = async () => {
         const trimmedCustomerName = customerName.trim();
         const trimmedCustomerPhone = customerPhone.trim();
@@ -230,7 +250,7 @@ const OrderPaymentPage = () => {
 
         try {
             const result = await checkout(payload);
-
+            console.log('Checkout result:', result);
             if (!result.success) {
                 toast.error(result.error || 'Failed to process payment');
                 return;
@@ -238,6 +258,7 @@ const OrderPaymentPage = () => {
 
             setReceiptPopup(result.data);
         } catch (error) {
+            console.error('Payment error:', error);
             toast.error('Something went wrong while processing payment');
         }
     };
@@ -246,6 +267,12 @@ const OrderPaymentPage = () => {
         try {
             if (!receiptPdfRef.current) return;
 
+            const guideCommissionEl = receiptPdfRef.current.querySelector('.receipt-guide-commission');
+
+            if (guideCommissionEl) {
+                guideCommissionEl.style.display = 'none';
+            }
+
             const canvas = await html2canvas(receiptPdfRef.current, {
                 scale: 2,
                 useCORS: true,
@@ -253,9 +280,13 @@ const OrderPaymentPage = () => {
                 logging: false
             });
 
+            if (guideCommissionEl) {
+                guideCommissionEl.style.display = '';
+            }
+
             const imgData = canvas.toDataURL('image/png');
 
-            const pageWidth = 80; // receipt thermal
+            const pageWidth = 80;
             const margin = 4;
             const contentWidth = pageWidth - margin * 2;
             const contentHeight = (canvas.height * contentWidth) / canvas.width;
@@ -270,6 +301,11 @@ const OrderPaymentPage = () => {
             pdf.save(`receipt-${receiptPopup?.receiptNumber || 'transaction'}.pdf`);
         } catch (error) {
             toast.error('Failed to generate receipt PDF');
+        } finally {
+            const guideCommissionEl = receiptPdfRef.current?.querySelector('.receipt-guide-commission');
+            if (guideCommissionEl) {
+                guideCommissionEl.style.display = '';
+            }
         }
     };
 
@@ -622,8 +658,8 @@ const OrderPaymentPage = () => {
             </div>
 
             {receiptPopup && (
-                <div className="fixed inset-0 z-50 bg-black/40 flex items-center justify-center p-4">
-                    <div className="w-full max-w-md bg-white rounded-2xl shadow-2xl relative p-4 sm:p-5 max-h-[100vh] overflow-y-auto">
+                <div className="fixed inset-0 z-50 bg-black/40 flex items-center justify-center p-3 sm:p-4 md:p-6">
+                    <div className="relative w-full max-w-4xl bg-white rounded-2xl shadow-2xl p-4 sm:p-6 md:p-8 max-h-[95vh] overflow-y-auto">
                         <button
                             type="button"
                             onClick={() => {
@@ -637,15 +673,15 @@ const OrderPaymentPage = () => {
 
                         <div
                             ref={receiptPdfRef}
-                            className="mx-auto w-full max-w-[300px] bg-white text-[#4E3629] p-4 rounded-none shadow-none"
+                            className="mx-auto w-full max-w-2xl bg-white text-[#4E3629] p-5 sm:p-6 md:p-8 rounded-xl shadow-none"
                             style={{
                                 fontFamily: 'Arial, sans-serif',
-                                lineHeight: 1.4,
+                                lineHeight: 1.5,
                             }}
                         >
                             {/* Header */}
-                            <div className="text-center border-b border-dashed border-[#D9D9D9] pb-3 mb-3">
-                                <div className="w-16 h-16 mx-auto mb-2 flex items-center justify-center">
+                            <div className="text-center border-b border-dashed border-[#D9D9D9] pb-4 mb-4">
+                                <div className="w-20 h-20 sm:w-24 sm:h-24 mx-auto mb-3 flex items-center justify-center">
                                     <img
                                         src={logoImage}
                                         alt="KriyaLogic Logo"
@@ -653,62 +689,62 @@ const OrderPaymentPage = () => {
                                     />
                                 </div>
 
-                                <h2 className="text-lg font-bold text-[#5A3B2D] leading-tight">
+                                <h2 className="text-2xl sm:text-3xl font-bold text-[#5A3B2D] leading-tight">
                                     KriyaLogic
                                 </h2>
 
-                                <p className="text-[10px] text-[#6B4C3B] mt-1">
+                                <p className="text-sm sm:text-base text-[#6B4C3B] mt-2">
                                     Empowering Craftsmanship with Digital Logic
                                 </p>
 
-                                <p className="text-[10px] text-[#6B4C3B] mt-2">
+                                <p className="text-sm text-[#6B4C3B] mt-2">
                                     Jl. Ir. Sutami, Kemenuh, Kec. Sukawati, Kabupaten Gianyar, Bali
                                 </p>
                             </div>
 
                             {/* Meta */}
-                            <div className="text-[11px] text-[#4E3629] space-y-1 border-b border-dashed border-[#D9D9D9] pb-3 mb-3">
-                                <div className="flex justify-between gap-3">
+                            <div className="text-sm sm:text-base text-[#4E3629] space-y-2 border-b border-dashed border-[#D9D9D9] pb-4 mb-4">
+                                <div className="flex justify-between gap-4">
                                     <span className="font-medium">Receipt No</span>
                                     <span className="text-right">#{receiptPopup.receiptNumber}</span>
                                 </div>
 
-                                <div className="flex justify-between gap-3">
+                                <div className="flex justify-between gap-4">
                                     <span className="font-medium">Date</span>
                                     <span className="text-right">
                                         {new Date(receiptPopup.paidAt).toLocaleString('id-ID')}
                                     </span>
                                 </div>
 
-                                <div className="flex justify-between gap-3">
+                                <div className="flex justify-between gap-4">
                                     <span className="font-medium">Cashier</span>
                                     <span className="text-right">{receiptPopup.cashierName || '-'}</span>
                                 </div>
 
-                                <div className="flex justify-between gap-3">
+                                <div className="flex justify-between gap-4">
                                     <span className="font-medium">Customer</span>
                                     <span className="text-right">{receiptPopup.customerName || '-'}</span>
                                 </div>
                             </div>
 
                             {/* Items */}
-                            <div className="mb-3">
-                                <h3 className="text-[12px] font-bold text-[#5A3B2D] mb-2">
+                            <div className="mb-4">
+                                <h3 className="text-base sm:text-lg font-bold text-[#5A3B2D] mb-3">
                                     Payment Details
                                 </h3>
 
-                                <div className="border-y border-dashed border-[#D9D9D9] py-2">
-                                    <div className="grid grid-cols-[1fr_35px_80px] gap-2 text-[10px] font-bold mb-2">
+                                <div className="border-y border-dashed border-[#D9D9D9] py-3">
+                                    <div className="grid grid-cols-[1fr_60px_120px] gap-3 text-sm sm:text-base font-bold mb-3">
                                         <div>Item</div>
                                         <div className="text-center">Qty</div>
                                         <div className="text-right">Total</div>
                                     </div>
 
-                                    <div className="space-y-2">
+                                    <div className="space-y-3">
                                         {receiptPopup.items.map((item, index) => (
                                             <div
                                                 key={item.productItemId || index}
-                                                className="grid grid-cols-[1fr_35px_80px] gap-2 text-[10px]"
+                                                className="grid grid-cols-[1fr_60px_120px] gap-3 text-sm sm:text-base"
                                             >
                                                 <div className="break-words">
                                                     {item.itemName}
@@ -728,28 +764,28 @@ const OrderPaymentPage = () => {
                             </div>
 
                             {/* Transaction details */}
-                            <div className="mb-3">
-                                <h3 className="text-[12px] font-bold text-[#5A3B2D] mb-2">
+                            <div className="mb-4">
+                                <h3 className="text-base sm:text-lg font-bold text-[#5A3B2D] mb-3">
                                     Transaction Details
                                 </h3>
 
-                                <div className="space-y-1 text-[10px]">
-                                    <div className="flex justify-between gap-3">
+                                <div className="space-y-2 text-sm sm:text-base">
+                                    <div className="flex justify-between gap-4">
                                         <span>Amount paid</span>
                                         <span className="text-right">{formatRupiah(receiptPopup.amountPaid)}</span>
                                     </div>
 
-                                    <div className="flex justify-between gap-3">
+                                    <div className="flex justify-between gap-4">
                                         <span>Change</span>
                                         <span className="text-right">{formatRupiah(receiptPopup.changeAmount)}</span>
                                     </div>
 
-                                    <div className="flex justify-between gap-3">
+                                    <div className="flex justify-between gap-4">
                                         <span>Payment method</span>
                                         <span className="text-right capitalize">{receiptPopup.paymentMethod}</span>
                                     </div>
 
-                                    <div className="flex justify-between gap-3">
+                                    <div className="flex justify-between gap-4 receipt-guide-commission">
                                         <span>Guide commission</span>
                                         <span className="text-right">
                                             {formatRupiah(receiptPopup.guideCommissionAmount)}
@@ -759,16 +795,16 @@ const OrderPaymentPage = () => {
                             </div>
 
                             {/* Footer */}
-                            <div className="text-center border-t border-dashed border-[#D9D9D9] pt-3 mt-3">
-                                <h2 className="text-base font-bold text-[#5A3B2D]">
+                            <div className="text-center border-t border-dashed border-[#D9D9D9] pt-4 mt-4">
+                                <h2 className="text-xl sm:text-2xl font-bold text-[#5A3B2D]">
                                     Have a Nice Day!
                                 </h2>
 
-                                <p className="text-[10px] text-[#6B4C3B] mt-1">
+                                <p className="text-sm sm:text-base text-[#6B4C3B] mt-2">
                                     No return or exchange accepted without receipt
                                 </p>
 
-                                <div className="mt-3 text-[10px] text-[#6B4C3B] space-y-1">
+                                <div className="mt-4 text-sm sm:text-base text-[#6B4C3B] space-y-1">
                                     <p className="font-semibold text-[#5A3B2D]">Get in touch</p>
                                     <p>@wahanagiri</p>
                                     <p>+62001234567</p>
@@ -776,7 +812,7 @@ const OrderPaymentPage = () => {
                             </div>
                         </div>
 
-                        <div className="grid grid-cols-2 gap-3 mt-5 print:hidden">
+                        <div className="grid grid-cols-1 sm:grid-cols-2 gap-3 mt-5 print:hidden">
                             <button
                                 type="button"
                                 onClick={() => {
@@ -794,6 +830,78 @@ const OrderPaymentPage = () => {
                                 className="h-11 rounded-xl bg-[#6A4734] text-white text-sm font-bold hover:opacity-90"
                             >
                                 Print Receipt
+                            </button>
+                        </div>
+                    </div>
+                </div>
+            )}
+
+            {showDeliveryPopup && (
+                <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/40">
+                    <div className="w-full max-w-md rounded-2xl bg-white p-6 shadow-xl">
+                        <h2 className="text-lg font-bold text-[#4E3629] mb-4">
+                            Input Delivery Fee
+                        </h2>
+
+                        <input
+                            type="number"
+                            min="0"
+                            value={deliveryInput}
+                            onChange={(e) => setDeliveryInput(e.target.value)}
+                            placeholder="Enter delivery fee"
+                            className="w-full rounded-xl border border-gray-300 px-4 py-3 outline-none focus:ring-2 focus:ring-[#6A4734]"
+                        />
+
+                        <div className="mt-5 flex justify-end gap-3">
+                            <button
+                                type="button"
+                                onClick={() => setShowDeliveryPopup(false)}
+                                className="rounded-xl border border-gray-300 px-4 py-2"
+                            >
+                                Cancel
+                            </button>
+                            <button
+                                type="button"
+                                onClick={handleSaveDeliveryFee}
+                                className="rounded-xl bg-[#6A4734] px-4 py-2 text-white"
+                            >
+                                Save
+                            </button>
+                        </div>
+                    </div>
+                </div>
+            )}
+            
+            {showDiscountPopup && (
+                <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/40">
+                    <div className="w-full max-w-md rounded-2xl bg-white p-6 shadow-xl">
+                        <h2 className="mb-4 text-lg font-bold text-[#4E3629]">
+                            Input Discount Amount
+                        </h2>
+
+                        <input
+                            type="number"
+                            min="0"
+                            value={discountInput}
+                            onChange={(e) => setDiscountInput(e.target.value)}
+                            placeholder="Enter discount amount"
+                            className="w-full rounded-xl border border-gray-300 px-4 py-3 outline-none focus:ring-2 focus:ring-[#6A4734]"
+                        />
+
+                        <div className="mt-5 flex justify-end gap-3">
+                            <button
+                                type="button"
+                                onClick={() => setShowDiscountPopup(false)}
+                                className="rounded-xl border border-gray-300 px-4 py-2"
+                            >
+                                Cancel
+                            </button>
+                            <button
+                                type="button"
+                                onClick={handleSaveDiscount}
+                                className="rounded-xl bg-[#6A4734] px-4 py-2 text-white"
+                            >
+                                Save
                             </button>
                         </div>
                     </div>

@@ -81,6 +81,20 @@ const InventoryProductDetail = () => {
         return 'bg-gray-300 text-gray-700 text-[14px]';
     };
 
+    const getStatusParentBadgeClass = (status) => {
+        const normalized = (status || '').toLowerCase();
+
+        if (normalized === 'active') {
+            return 'bg-green-100 text-green-800 text-[14px]';
+        }
+
+        if (normalized === 'inactive') {
+            return 'bg-red-100 text-red-800 text-[14px]';
+        }
+
+        return 'bg-gray-100 text-gray-800 text-[14px]';
+    }
+
     return (
         <div className="w-full px-2 md:px-4 lg:px-6 py-3">
             {loading ? (
@@ -94,12 +108,12 @@ const InventoryProductDetail = () => {
                             <button
                                 type="button"
                                 onClick={() => navigate('/dashboard/inventory')}
-                                className="w-10 h-10 rounded-full bg-[#6A4734] text-white flex items-center justify-center hover:opacity-90"
+                                className="w-9 h-9 rounded-full bg-[#6A4734] text-white flex items-center justify-center hover:opacity-90"
                             >
                                 <ArrowLeft className="w-5 h-5" />
                             </button>
 
-                            <h1 className="text-2xl md:text-3xl font-bold text-[#4F3427]">
+                            <h1 className="text-1xl md:text-2xl font-bold text-[#4F3427]">
                                 Product Family Details
                             </h1>
                         </div>
@@ -144,6 +158,17 @@ const InventoryProductDetail = () => {
                                         <div className="text-black text-[16px]">Category</div>
                                         <div className="text-right text-black text-[16px]">
                                             {parentProduct.categoryName || '-'}
+                                        </div>
+
+                                        <div className="text-black text-[16px]">Status</div>
+                                        <div className="text-right text-black text-[16px]">
+                                            <span
+                                                className={`px-4 py-1 rounded-full capitalize ${getStatusParentBadgeClass(
+                                                    parentProduct.status
+                                                )}`}
+                                            >
+                                                {parentProduct.status || '-'}
+                                            </span>
                                         </div>
 
                                         <div className="text-black text-[16px]">Parent Code</div>

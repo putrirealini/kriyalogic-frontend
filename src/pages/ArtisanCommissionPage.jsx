@@ -1,8 +1,9 @@
-import React, { useMemo, useState, useRef } from 'react';
+import React, { useMemo, useState, useRef, useEffect } from 'react';
 import { ArrowLeft, Search, User } from 'lucide-react';
 import { useNavigate, useParams } from 'react-router-dom';
 import useArtisanCommissions from '../hooks/useArtisanCommissions';
 import useMarkAllArtisanCommissionPaid from '../hooks/useMarkAllArtisanCommissionPaid';
+import useMarkSelectedArtisanCommissionPaid from '../hooks/useMarkSelectedArtisanCommissionPaid';
 import useExportArtisanCommissionsExcel from '../hooks/useExportArtisanCommissionsExcel';
 import html2canvas from 'html2canvas-pro';
 import jsPDF from 'jspdf';
@@ -22,6 +23,7 @@ const ArtisanCommissionPage = () => {
     const [status, setStatus] = useState('unpaid');
     const [fromDate, setFromDate] = useState('');
     const [toDate, setToDate] = useState('');
+    const [selectedCommissionIds, setSelectedCommissionIds] = useState([]);
 
     const {
         commissions,
@@ -46,10 +48,32 @@ const ArtisanCommissionPage = () => {
     } = useMarkAllArtisanCommissionPaid();
 
     const {
+        markSelectedPaid,
+        loading: markSelectedPaidLoading,
+        error: markSelectedPaidError
+    } = useMarkSelectedArtisanCommissionPaid();
+
+    const unpaidCommissions = useMemo(() => {
+        return commissions.filter((item) => item.status === 'unpaid');
+    }, [commissions]);
+
+    const selectedUnpaidCount = selectedCommissionIds.length;
+
+    const isAllUnpaidSelected =
+        unpaidCommissions.length > 0 &&
+        unpaidCommissions.every((item) => selectedCommissionIds.includes(item._id));
+
+    const {
         exportExcel,
         loading: exportLoading,
         error: exportError
     } = useExportArtisanCommissionsExcel();
+
+    useEffect(() => {
+        setSelectedCommissionIds((prev) =>
+            prev.filter((id) => commissions.some((item) => item._id === id && item.status === 'unpaid'))
+        );
+    }, [commissions]);
 
     const title = useMemo(() => {
         return `Artisan Commission ${artisanName || ''}`.trim();
@@ -71,6 +95,31 @@ const ArtisanCommissionPage = () => {
         }
 
         toast.success(result.message || 'All commissions marked as paid');
+        refetch();
+    };
+
+    const handleMarkSelectedPaid = async () => {
+        if (!selectedCommissionIds.length) {
+            toast.error('Please select unpaid commissions first');
+            return;
+        }
+
+        if (!window.confirm(`Mark ${selectedCommissionIds.length} selected commission(s) as paid?`)) {
+            return;
+        }
+
+        const result = await markSelectedPaid({
+            artisanId: id,
+            commissionIds: selectedCommissionIds
+        });
+
+        if (!result.success) {
+            toast.error(result.error || 'Failed to mark selected commissions as paid');
+            return;
+        }
+
+        toast.success(result.message || 'Selected commissions marked as paid');
+        setSelectedCommissionIds([]);
         refetch();
     };
 
@@ -141,6 +190,23 @@ const ArtisanCommissionPage = () => {
         }
     };
 
+    const handleToggleCommission = (commissionId) => {
+        setSelectedCommissionIds((prev) =>
+            prev.includes(commissionId)
+                ? prev.filter((id) => id !== commissionId)
+                : [...prev, commissionId]
+        );
+    };
+
+    const handleToggleSelectAllUnpaid = () => {
+        if (isAllUnpaidSelected) {
+            setSelectedCommissionIds([]);
+            return;
+        }
+
+        setSelectedCommissionIds(unpaidCommissions.map((item) => item._id));
+    };
+
     return (
         <div className="min-h-screen px-2 py-2">
             <div className="flex items-center justify-between mb-8">
@@ -201,14 +267,23 @@ const ArtisanCommissionPage = () => {
                 />
             </div>
 
-            {(error || markAllPaidError) && (
+            {(error || markSelectedPaidError || exportError) && (
                 <div className="mb-4 rounded-xl border border-red-200 bg-red-50 px-4 py-3 text-sm text-red-600">
-                    {error || markAllPaidError}
+                    {error || markSelectedPaidError || exportError}
                 </div>
             )}
 
             <div ref={pdfRef} className="bg-[#F8F8F8] rounded-3xl shadow-sm border border-gray-200 overflow-hidden">
-                <div className="grid grid-cols-[90px_1.4fr_1fr_1fr_160px] px-9 py-7 text-[16px] font-bold text-[#1F1F1F] border-b border-gray-300">
+                <div className="grid grid-cols-[60px_90px_1.4fr_1fr_1fr_160px] px-9 py-7 text-[16px] font-bold text-[#1F1F1F] border-b border-gray-300">
+                    <div>
+                        <input
+                            type="checkbox"
+                            checked={isAllUnpaidSelected}
+                            onChange={handleToggleSelectAllUnpaid}
+                            disabled={!unpaidCommissions.length}
+                            className="w-4 h-4 accent-[#6A4734]"
+                        />
+                    </div>
                     <div>No</div>
                     <div>Item Name</div>
                     <div>Child Code</div>
@@ -222,10 +297,17 @@ const ArtisanCommissionPage = () => {
                     commissions.map((item, index) => (
                         <div
                             key={item._id}
-                            className="grid grid-cols-[90px_1.4fr_1fr_1fr_160px] px-9 py-5 items-center border-b border-gray-300 last:border-b-0"
+                            className="grid grid-cols-[60px_90px_1.4fr_1fr_1fr_160px] px-9 py-5 items-center border-b border-gray-300 last:border-b-0"
                         >
-                            <div className="text-[16px] font-semibold text-[#1F1F1F]">
-                                {index + 1}
+                            <div>
+                                {item.status === 'unpaid' ? (
+                                    <input
+                                        type="checkbox"
+                                        checked={selectedCommissionIds.includes(item._id)}
+                                        onChange={() => handleToggleCommission(item._id)}
+                                        className="w-4 h-4 accent-[#6A4734]"
+                                    />
+                                ) : null}
                             </div>
 
                             <div className="flex items-center gap-4 min-w-0">
@@ -303,11 +385,11 @@ const ArtisanCommissionPage = () => {
 
                 <button
                     type="button"
-                    onClick={handleMarkAllPaid}
-                    disabled={markAllPaidLoading || totalPending <= 0}
+                    onClick={handleMarkSelectedPaid}
+                    disabled={markSelectedPaidLoading || selectedCommissionIds.length <= 0}
                     className="h-14 min-w-[260px] rounded-2xl bg-[#6A4734] text-white text-[18px] font-bold hover:opacity-90 disabled:opacity-60 disabled:cursor-not-allowed"
                 >
-                    {markAllPaidLoading ? 'Processing...' : 'Mark All as Paid'}
+                    {markSelectedPaidLoading ? 'Processing...' : 'Mark Selected as Paid'}
                 </button>
             </div>
         </div>

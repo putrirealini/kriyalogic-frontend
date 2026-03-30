@@ -98,6 +98,9 @@ const Inventory = () => {
                                     Available Stock
                                 </th>
                                 <th className="px-4 py-3 text-left text-sm font-semibold">
+                                    Status
+                                </th>
+                                <th className="px-4 py-3 text-left text-sm font-semibold">
                                     Action
                                 </th>
                             </tr>
@@ -138,8 +141,19 @@ const Inventory = () => {
 
                                         <td className="px-4 py-3 text-sm">{item.parentCode || '-'}</td>
                                         <td className="px-4 py-3 text-sm">{item.categoryName || '-'}</td>
+                                        <td className="px-4 py-3 text-sm">{item.availableStock !== undefined ? item.availableStock : '-'}</td>
                                         <td className="px-4 py-3 text-sm">
-                                            {item.availableStock !== undefined ? item.availableStock : '-'}
+                                            <span
+                                                className={`px-2 py-1 rounded-full text-xs capitalize ${
+                                                    item.status === 'active'
+                                                        ? 'bg-green-100 text-green-800'
+                                                        : item.status === 'inactive'
+                                                            ? 'bg-red-100 text-red-800'
+                                                            : 'bg-gray-100 text-gray-800'
+                                                }`}
+                                            >
+                                                {item.status || '-'}
+                                            </span>
                                         </td>
                                         <td className="px-4 py-3">
                                             <div className="flex items-center gap-3">
@@ -153,7 +167,7 @@ const Inventory = () => {
                                                     <Pencil size={18} />
                                                 </button>
 
-                                                <button
+                                                {/* <button
                                                     className="text-red-600 hover:text-red-800"
                                                     onClick={(e) => {
                                                         e.stopPropagation();
@@ -161,7 +175,7 @@ const Inventory = () => {
                                                     }}
                                                 >
                                                     <Trash2 size={18} />
-                                                </button>
+                                                </button> */}
                                             </div>
                                         </td>
                                     </tr>

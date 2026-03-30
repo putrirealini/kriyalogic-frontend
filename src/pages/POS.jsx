@@ -215,8 +215,8 @@ const POS = () => {
             {/* CENTER SECTION */}
             <section className="px-4 py-10 overflow-y-auto">
                 <div className="flex items-center justify-between mb-10 gap-6">
-                    <h2 className="text-[24px] font-bold text-[#5A3B2D]">
-                        Choose Category
+                    <h2 className="text-2xl font-bold text-[#5A3B2D]">
+                        Choose Parent Product
                     </h2>
 
                     <div className="relative w-full max-w-[320px]">

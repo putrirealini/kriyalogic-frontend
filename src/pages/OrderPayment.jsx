@@ -542,7 +542,7 @@ const OrderPaymentPage = () => {
                         <p className="text-[18px] font-semibold text-[#6A4E40] mb-3">
                             Amount to Pay
                         </p>
-                        <h2 className="text-[56px] leading-none font-bold text-[#1F1F1F]">
+                        <h2 className="text-5xl leading-none font-bold text-[#1F1F1F]">
                             {formatRupiah(totalAmount)}
                         </h2>
                     </div>
@@ -623,7 +623,7 @@ const OrderPaymentPage = () => {
 
             {receiptPopup && (
                 <div className="fixed inset-0 z-50 bg-black/40 flex items-center justify-center p-4">
-                    <div className="w-full max-w-md bg-white rounded-2xl shadow-2xl relative p-4 sm:p-5 max-h-[90vh] overflow-y-auto">
+                    <div className="w-full max-w-md bg-white rounded-2xl shadow-2xl relative p-4 sm:p-5 max-h-[100vh] overflow-y-auto">
                         <button
                             type="button"
                             onClick={() => {

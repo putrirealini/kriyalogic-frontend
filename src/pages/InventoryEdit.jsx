@@ -28,7 +28,8 @@ const InventoryEdit = () => {
         woodType: '',
         categoryName: '',
         description: '',
-        parentCode: ''
+        parentCode: '',
+        status: ''
     });
 
     const [logo, setLogo] = useState(null);
@@ -102,13 +103,11 @@ const InventoryEdit = () => {
 
         setForm({
             productName: parentProduct.productName || '',
-            woodType:
-                Array.isArray(parentProduct.woodTypes) && parentProduct.woodTypes.length
-                    ? parentProduct.woodTypes[0]
-                    : '',
+            woodType: Array.isArray(parentProduct.woodTypes) && parentProduct.woodTypes.length ? parentProduct.woodTypes[0] : '',
             categoryName: parentProduct.categoryName || '',
             description: parentProduct.description || '',
-            parentCode: parentProduct.parentCode || ''
+            parentCode: parentProduct.parentCode || '',
+            status: parentProduct.status || ''
         });
 
         if (parentProduct.logo) {
@@ -264,6 +263,7 @@ const InventoryEdit = () => {
             productName: form.productName.trim(),
             description: form.description.trim(),
             woodTypes: [form.woodType.trim()],
+            status: form.status,
             logo: logoValue
         };
     };
@@ -554,6 +554,22 @@ const InventoryEdit = () => {
                                 <p className="text-xs text-gray-400 mt-2">
                                     Auto Generate when the product is saved.
                                 </p>
+                            </div>
+
+                            <div>
+                                <label className="block text-sm font-medium text-gray-700 mb-2">
+                                    Status
+                                </label>
+                                <select
+                                    name="status"
+                                    value={form.status}
+                                    onChange={handleChange}
+                                    className="w-full rounded-xl border border-gray-200 bg-white shadow-md px-4 py-3 outline-none focus:ring-2 focus:ring-[#6A4734]"
+                                >
+                                    <option value="">Select status</option>
+                                    <option value="active">Active</option>
+                                    <option value="inactive">Inactive</option>
+                                </select>
                             </div>
 
                             <div className="flex items-center justify-end gap-3 pt-3">

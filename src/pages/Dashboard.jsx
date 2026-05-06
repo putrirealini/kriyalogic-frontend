@@ -32,6 +32,11 @@ import ArtisanCommissionPage from './ArtisanCommissionPage';
 import PosPage from './POS';
 import OrderPaymentPage from './OrderPayment';
 import ReceiptHistoryPage from './ReceiptHistory';
+import SettingPage from './SettingPage';
+import DeliveryPage from './DeliveryPage';
+import TransactionPage from './TransactionPage';
+import AnalyticsReport from './AnalyticsReport';
+import ForecastPage from './ForecastPage';
 
 // nanti ganti ini dengan page POS beneran
 // const PosPage = () => <PlaceholderPage title="POS" />;
@@ -91,7 +96,8 @@ const Dashboard = () => {
         { name: 'Tour Guides', path: '/dashboard/partners/tour-guides' }
       ]
     },
-    { name: 'Finance & Reports', path: '/dashboard/finance', icon: BarChart3 },
+    { name: 'Forecasting', path: '/dashboard/forecast', icon: BarChart3 },
+    { name: 'Analytics Report', path: '/dashboard/analytics', icon: BarChart3 },
     { name: 'User Management', path: '/dashboard/user-management', icon: Users },
     { name: 'Settings', path: '/dashboard/settings', icon: Settings }
   ];
@@ -100,7 +106,6 @@ const Dashboard = () => {
     { name: 'POS', path: '/dashboard/pos', icon: ShoppingCart },
     { name: 'Delivery', path: '/dashboard/delivery', icon: Truck },
     { name: 'Transactions', path: '/dashboard/transactions', icon: ReceiptText },
-    { name: 'Settings', path: '/dashboard/settings', icon: Settings }
   ];
 
   const menuItems = useMemo(() => {
@@ -274,8 +279,9 @@ const Dashboard = () => {
                   path="/inventory/edit/child-product/:childId"
                   element={<InventoryEditChildProduct />}
                 />
-                <Route path="/finance" element={<PlaceholderPage title="Finance & Reports" />} />
-                <Route path="/settings" element={<PlaceholderPage title="Settings" />} />
+                <Route path="/forecast" element={<ForecastPage />} />
+                <Route path="/analytics" element={<AnalyticsReport />} />
+                <Route path="/settings" element={<SettingPage />} />
                 <Route path="/user-management" element={<UserManagement />} />
                 <Route path="/partners/artisans" element={<Artisans />} />
                 <Route path="/partners/artisans/commission/:id" element={<ArtisanCommissionPage />} />
@@ -289,9 +295,8 @@ const Dashboard = () => {
                 <Route path="/pos" element={<PosPage />} />
                 <Route path="/pos/order-payment" element={<OrderPaymentPage />} />
                 <Route path="/pos/receipt-histories" element={<ReceiptHistoryPage />} />
-                <Route path="/delivery" element={<PlaceholderPage title="Delivery" />} />
-                <Route path="/transactions" element={<PlaceholderPage title="Transactions" />} />
-                <Route path="/settings" element={<PlaceholderPage title="Settings" />} />
+                <Route path="/delivery" element={<DeliveryPage />} />
+                <Route path="/transactions" element={<TransactionPage />} />
               </>
             )}
 

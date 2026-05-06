@@ -34,7 +34,7 @@ const useReceiptHistories = (params = {}) => {
             });
 
             const result = await response.json();
-
+            console.log('Fetch Receipt Histories Response:', { status: response.status, result });
             if (!response.ok || !result.success) {
                 throw new Error(result.message || 'Failed to fetch receipt histories');
             }

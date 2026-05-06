@@ -23,6 +23,7 @@ const formatRupiah = (value) => {
 };
 
 const TAX_PERCENT = 5;
+const STORE_PROFIT_PERCENT = 15;
 
 const OrderPaymentPage = () => {
     const navigate = useNavigate();
@@ -33,6 +34,7 @@ const OrderPaymentPage = () => {
     const [receiptPopup, setReceiptPopup] = useState(null);
     const [isUserMenuOpen, setIsUserMenuOpen] = useState(false);
     const userMenuRef = useRef(null);
+
     const orderState = location.state || {};
     const orderItems = Array.isArray(orderState.items) ? orderState.items : [];
     const selectedGuide = orderState.selectedGuide || null;
@@ -45,32 +47,91 @@ const OrderPaymentPage = () => {
     const [selectedPaymentMethod, setSelectedPaymentMethod] = useState(
         orderState.paymentMethod || 'qris'
     );
+
     const [deliveryFee, setDeliveryFee] = useState(0);
+    const [deliveryPackageName, setDeliveryPackageName] = useState('');
+    const [deliveryData, setDeliveryData] = useState(null);
     const [showDeliveryPopup, setShowDeliveryPopup] = useState(false);
-    const [deliveryInput, setDeliveryInput] = useState('');
 
     const [discount, setDiscount] = useState(0);
     const [showDiscountPopup, setShowDiscountPopup] = useState(false);
     const [discountInput, setDiscountInput] = useState('');
-    
+
     const [paidAmountInput, setPaidAmountInput] = useState('');
     const isCashPayment = selectedPaymentMethod === 'cash';
 
+    const [deliveryForm, setDeliveryForm] = useState({
+        packageName: '',
+        courierPrice: ''
+    });
+
+    const courierPriceNumber = useMemo(() => {
+        return Number(deliveryForm.courierPrice || 0);
+    }, [deliveryForm.courierPrice]);
+
+    const storeProfit = useMemo(() => {
+        return courierPriceNumber * (STORE_PROFIT_PERCENT / 100);
+    }, [courierPriceNumber]);
+
+    const deliveryTotalPrice = useMemo(() => {
+        return courierPriceNumber + storeProfit;
+    }, [courierPriceNumber, storeProfit]);
+
+    const handleDeliveryFormChange = (e) => {
+        const { name, value } = e.target;
+
+        setDeliveryForm((prev) => ({
+            ...prev,
+            [name]: name === 'courierPrice' ? value.replace(/[^\d]/g, '') : value
+        }));
+    };
+
     const handleAddDelivery = () => {
-        setDeliveryInput(deliveryFee ? String(deliveryFee) : '');
+        const courierOnly =
+            deliveryData?.courierPrice
+                ? Number(deliveryData.courierPrice)
+                : deliveryFee > 0
+                    ? Math.round(deliveryFee / (1 + STORE_PROFIT_PERCENT / 100))
+                    : 0;
+
+        setDeliveryForm({
+            packageName: deliveryPackageName || '',
+            courierPrice: courierOnly ? String(courierOnly) : ''
+        });
+
         setShowDeliveryPopup(true);
     };
 
     const handleSaveDeliveryFee = () => {
-        const numericValue = Number(String(deliveryInput).replace(/,/g, '').trim());
+        const packageName = deliveryForm.packageName.trim();
+        const courierPrice = Number(String(deliveryForm.courierPrice).replace(/,/g, '').trim());
 
-        if (Number.isNaN(numericValue) || numericValue < 0) {
-            alert('Delivery fee must be a valid number and cannot be negative');
+        if (!packageName) {
+            toast.error('Package name is required');
             return;
         }
 
-        setDeliveryFee(numericValue);
+        if (Number.isNaN(courierPrice) || courierPrice < 0) {
+            toast.error('Courier price must be a valid number and cannot be negative');
+            return;
+        }
+
+        const calculatedStoreProfit = courierPrice * (STORE_PROFIT_PERCENT / 100);
+        const calculatedTotalPrice = courierPrice + calculatedStoreProfit;
+
+        const localDeliveryData = {
+            packageName,
+            courierPrice,
+            storeProfit: calculatedStoreProfit,
+            totalPrice: calculatedTotalPrice
+        };
+
+        setDeliveryPackageName(packageName);
+        setDeliveryFee(calculatedTotalPrice);
+        setDeliveryData(localDeliveryData);
         setShowDeliveryPopup(false);
+
+        toast.success('Delivery added to form');
     };
 
     const handleAddDiscount = () => {
@@ -82,7 +143,7 @@ const OrderPaymentPage = () => {
         const numericValue = Number(String(discountInput).replace(/,/g, '').trim());
 
         if (Number.isNaN(numericValue) || numericValue < 0) {
-            alert('Discount must be a valid number and cannot be negative');
+            toast.error('Discount must be a valid number and cannot be negative');
             return;
         }
 
@@ -103,7 +164,7 @@ const OrderPaymentPage = () => {
         };
     }, []);
 
-    const { checkout, loading: isSubmitting, error: checkoutError, setError: alert } = useCheckout();
+    const { checkout, loading: isSubmitting } = useCheckout();
 
     const subtotal = useMemo(() => {
         if (orderState.subtotal !== undefined) {
@@ -204,13 +265,13 @@ const OrderPaymentPage = () => {
         const trimmedCustomerName = customerName.trim();
         const trimmedCustomerPhone = customerPhone.trim();
 
-        if (!customerName.trim()) {
+        if (!trimmedCustomerName) {
             setCustomerNameError('Customer name is required');
         } else {
             setCustomerNameError('');
         }
 
-        if (!customerPhone.trim()) {
+        if (!trimmedCustomerPhone) {
             setCustomerPhoneError('Customer phone number is required');
         } else {
             setCustomerPhoneError('');
@@ -224,15 +285,17 @@ const OrderPaymentPage = () => {
             toast.error('Please select a payment method');
         }
 
-        if (!customerName.trim() || !customerPhone.trim() || !orderItems.length || !selectedPaymentMethod) {
+        if (!trimmedCustomerName || !trimmedCustomerPhone || !orderItems.length || !selectedPaymentMethod) {
             return;
         }
 
-        const totalAmount = orderItems.reduce((sum, item) => {
-            return sum + (item.price * item.quantity);
-        }, 0) + Number(deliveryFee || 0) - Number(discount || 0);
+        const checkoutSubtotal = orderItems.reduce((sum, item) => {
+            return sum + (Number(item.price || 0) * Number(item.quantity || 1));
+        }, 0);
 
-        if (selectedPaymentMethod === 'cash' && Number(paidAmount || 0) < totalAmount) {
+        const checkoutTotal = checkoutSubtotal + Number(deliveryFee || 0) - Number(discount || 0);
+
+        if (selectedPaymentMethod === 'cash' && Number(paidAmount || 0) < checkoutTotal) {
             toast.error('Amount paid is less than total payment');
             return;
         }
@@ -245,12 +308,20 @@ const OrderPaymentPage = () => {
             guideId: selectedGuide?.id || null,
             deliveryFee: Number(deliveryFee || 0),
             discount: Number(discount || 0),
-            amountPaid: Number(paidAmount || 0)
+            amountPaid: Number(paidAmount || 0),
+            delivery: deliveryData
+                ? {
+                    packageName: deliveryData.packageName,
+                    courierPrice: Number(deliveryData.courierPrice || 0),
+                    storeProfit: Number(deliveryData.storeProfit || 0),
+                    totalPrice: Number(deliveryData.totalPrice || 0)
+                }
+                : null
         };
 
         try {
             const result = await checkout(payload);
-            console.log('Checkout result:', result);
+
             if (!result.success) {
                 toast.error(result.error || 'Failed to process payment');
                 return;
@@ -342,7 +413,7 @@ const OrderPaymentPage = () => {
                     >
                         <ArrowLeft className="w-5 h-5" />
                     </button>
-                    <h1 className="text-[22px] font-bold text-[#5A3B2D]">
+                    <h1 className="text-lg font-bold text-[#5A3B2D]">
                         Order Payment
                     </h1>
                 </div>
@@ -393,7 +464,6 @@ const OrderPaymentPage = () => {
             </div>
 
             <div className="grid grid-cols-1 xl:grid-cols-[1fr_360px] gap-8">
-                {/* LEFT */}
                 <section className="bg-[#EAEAEA] rounded-3xl p-8 min-h-[760px] flex flex-col">
                     <div className="mb-8">
                         <h2 className="text-[16px] font-semibold text-[#5A3B2D] mb-4">
@@ -407,8 +477,8 @@ const OrderPaymentPage = () => {
                                     placeholder="Add Name"
                                     value={customerName}
                                     required
-                                    onChange={(e) =>{
-                                        setCustomerName(e.target.value)
+                                    onChange={(e) => {
+                                        setCustomerName(e.target.value);
                                         setCustomerNameError('');
                                     }}
                                     className="h-12 rounded-xl border border-[#B9ACA0] bg-[#F8F8F8] px-4 outline-none focus:ring-2 focus:ring-[#6A4734]"
@@ -438,7 +508,6 @@ const OrderPaymentPage = () => {
                                     </small>
                                 )}
                             </div>
-
                         </div>
                     </div>
 
@@ -510,9 +579,26 @@ const OrderPaymentPage = () => {
                                     </div>
 
                                     <div className="flex items-center justify-between">
-                                        <span>delivery fee</span>
+                                        <span>
+                                            delivery fee
+                                            {deliveryPackageName ? ` (${deliveryPackageName})` : ''}
+                                        </span>
                                         <span>{deliveryFee ? formatRupiah(deliveryFee) : '-'}</span>
                                     </div>
+
+                                    {deliveryData && (
+                                        <>
+                                            <div className="flex items-center justify-between">
+                                                <span>courier price</span>
+                                                <span>{formatRupiah(deliveryData.courierPrice)}</span>
+                                            </div>
+
+                                            <div className="flex items-center justify-between">
+                                                <span>store profit ({STORE_PROFIT_PERCENT}%)</span>
+                                                <span>{formatRupiah(deliveryData.storeProfit)}</span>
+                                            </div>
+                                        </>
+                                    )}
 
                                     <div className="flex items-center justify-between">
                                         <span>discount</span>
@@ -544,7 +630,6 @@ const OrderPaymentPage = () => {
                     </div>
                 </section>
 
-                {/* RIGHT */}
                 <aside className="flex flex-col">
                     <div className="grid grid-cols-3 gap-4 mb-16">
                         {paymentMethods.map((method) => {
@@ -679,7 +764,6 @@ const OrderPaymentPage = () => {
                                 lineHeight: 1.5,
                             }}
                         >
-                            {/* Header */}
                             <div className="text-center border-b border-dashed border-[#D9D9D9] pb-4 mb-4">
                                 <div className="w-20 h-20 sm:w-24 sm:h-24 mx-auto mb-3 flex items-center justify-center">
                                     <img
@@ -702,7 +786,6 @@ const OrderPaymentPage = () => {
                                 </p>
                             </div>
 
-                            {/* Meta */}
                             <div className="text-sm sm:text-base text-[#4E3629] space-y-2 border-b border-dashed border-[#D9D9D9] pb-4 mb-4">
                                 <div className="flex justify-between gap-4">
                                     <span className="font-medium">Receipt No</span>
@@ -727,7 +810,6 @@ const OrderPaymentPage = () => {
                                 </div>
                             </div>
 
-                            {/* Items */}
                             <div className="mb-4">
                                 <h3 className="text-base sm:text-lg font-bold text-[#5A3B2D] mb-3">
                                     Payment Details
@@ -763,7 +845,6 @@ const OrderPaymentPage = () => {
                                 </div>
                             </div>
 
-                            {/* Transaction details */}
                             <div className="mb-4">
                                 <h3 className="text-base sm:text-lg font-bold text-[#5A3B2D] mb-3">
                                     Transaction Details
@@ -785,6 +866,13 @@ const OrderPaymentPage = () => {
                                         <span className="text-right capitalize">{receiptPopup.paymentMethod}</span>
                                     </div>
 
+                                    <div className="flex justify-between gap-4">
+                                        <span>Delivery</span>
+                                        <span className="text-right">
+                                            {receiptPopup.deliveryFee ? formatRupiah(receiptPopup.deliveryFee) : '-'}
+                                        </span>
+                                    </div>
+
                                     <div className="flex justify-between gap-4 receipt-guide-commission">
                                         <span>Guide commission</span>
                                         <span className="text-right">
@@ -794,7 +882,6 @@ const OrderPaymentPage = () => {
                                 </div>
                             </div>
 
-                            {/* Footer */}
                             <div className="text-center border-t border-dashed border-[#D9D9D9] pt-4 mt-4">
                                 <h2 className="text-xl sm:text-2xl font-bold text-[#5A3B2D]">
                                     Have a Nice Day!
@@ -837,41 +924,94 @@ const OrderPaymentPage = () => {
             )}
 
             {showDeliveryPopup && (
-                <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/40">
-                    <div className="w-full max-w-md rounded-2xl bg-white p-6 shadow-xl">
-                        <h2 className="text-lg font-bold text-[#4E3629] mb-4">
-                            Input Delivery Fee
+                <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/40 px-4">
+                    <div className="w-full max-w-xl rounded-[32px] bg-white px-8 py-8 shadow-2xl">
+                        <h2 className="text-[28px] font-bold text-[#4E3629] mb-4 leading-none">
+                            Add Delivery
                         </h2>
 
-                        <input
-                            type="number"
-                            min="0"
-                            value={deliveryInput}
-                            onChange={(e) => setDeliveryInput(e.target.value)}
-                            placeholder="Enter delivery fee"
-                            className="w-full rounded-xl border border-gray-300 px-4 py-3 outline-none focus:ring-2 focus:ring-[#6A4734]"
-                        />
+                        <div className="space-y-4">
+                            <div>
+                                <label className="block text-lg font-semibold text-[#2F241F] mb-2">
+                                    Package Name
+                                </label>
+                                <input
+                                    type="text"
+                                    name="packageName"
+                                    value={deliveryForm.packageName}
+                                    onChange={handleDeliveryFormChange}
+                                    placeholder="Enter package name"
+                                    className="w-full h-[50px] rounded-[12px] border border-[#CFCFCF] px-4 text-sm outline-none focus:ring-2 focus:ring-[#6A4734]"
+                                />
+                            </div>
 
-                        <div className="mt-5 flex justify-end gap-3">
+                            <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+                                <div>
+                                    <label className="block text-lg font-semibold text-[#2F241F] mb-2">
+                                        Courier Price
+                                    </label>
+                                    <input
+                                        type="text"
+                                        name="courierPrice"
+                                        value={deliveryForm.courierPrice}
+                                        onChange={handleDeliveryFormChange}
+                                        className="w-full h-[50px] rounded-[12px] border border-[#CFCFCF] px-4 text-sm outline-none focus:ring-2 focus:ring-[#6A4734]"
+                                    />
+                                </div>
+
+                                <div>
+                                    <label className="block text-lg font-semibold text-[#2F241F] mb-2">
+                                        Store Profit ({STORE_PROFIT_PERCENT}%)
+                                    </label>
+                                    <input
+                                        type="text"
+                                        value={formatRupiah(storeProfit)}
+                                        readOnly
+                                        className="w-full h-[50px] rounded-[12px] border border-[#CFCFCF] bg-[#FAFAFA] px-4 text-sm text-gray-600 outline-none"
+                                    />
+                                </div>
+                            </div>
+
+                            <div>
+                                <label className="block text-lg font-semibold text-[#2F241F] mb-2">
+                                    Total Price
+                                </label>
+                                <input
+                                    type="text"
+                                    value={formatRupiah(deliveryTotalPrice)}
+                                    readOnly
+                                    className="w-full h-[50px] rounded-[12px] border border-[#CFCFCF] bg-[#FAFAFA] px-4 text-sm text-gray-600 outline-none"
+                                />
+                            </div>
+                        </div>
+
+                        <div className="mt-8 flex justify-end gap-4">
                             <button
                                 type="button"
-                                onClick={() => setShowDeliveryPopup(false)}
-                                className="rounded-xl border border-gray-300 px-4 py-2"
+                                onClick={() => {
+                                    setShowDeliveryPopup(false);
+                                    setDeliveryForm({
+                                        packageName: '',
+                                        courierPrice: ''
+                                    });
+                                }}
+                                className="min-w-[140px] h-[48px] rounded-[14px] bg-[#6A4734] text-white text-base font-semibold hover:opacity-90"
                             >
                                 Cancel
                             </button>
+
                             <button
                                 type="button"
                                 onClick={handleSaveDeliveryFee}
-                                className="rounded-xl bg-[#6A4734] px-4 py-2 text-white"
+                                className="min-w-[160px] h-[48px] rounded-[14px] bg-[#6A4734] text-white text-base font-semibold hover:opacity-90"
                             >
-                                Save
+                                Add Delivery
                             </button>
                         </div>
                     </div>
                 </div>
             )}
-            
+
             {showDiscountPopup && (
                 <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/40">
                     <div className="w-full max-w-md rounded-2xl bg-white p-6 shadow-xl">

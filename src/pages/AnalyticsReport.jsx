@@ -13,7 +13,8 @@ import {
   TrendingUp,
   ShieldCheck,
   Sparkles,
-  ArrowUpRight
+  ArrowUpRight,
+  Package
 } from 'lucide-react';
 
 const API_URL = import.meta.env.VITE_API_URL || 'http://localhost:5000/api/v1';
@@ -24,6 +25,7 @@ const formatRupiah = (value) => {
 };
 
 const mockData = {
+  totalQuantity: 289,
   totalRevenue: 178500000,
   totalCommissionExpenses: 24250000,
   netProfit: 94500000,
@@ -100,8 +102,8 @@ const AnalyticsReport = () => {
           
           if (err.message.includes('Failed to fetch')) {
             userMessage += 'Cannot connect to API server. Showing sample data.';
-          } else if (err.message.includes('Invalid analytics response')) {
-            userMessage += 'Ensure analytics data has been seeded: npm run seed:analytics';
+          } else if (err.message.includes('Invalid analytics response') || err.message.includes('No AnalyticsRecord data found')) {
+            userMessage += 'Automatic data seeding failed or is in progress. Showing sample data.';
           } else {
             userMessage += 'Showing sample data while loading.';
           }
@@ -119,6 +121,7 @@ const AnalyticsReport = () => {
   }, [fromDate, toDate]);
 
   const {
+    totalQuantity,
     totalRevenue,
     totalCommissionExpenses,
     netProfit,
@@ -183,6 +186,23 @@ const AnalyticsReport = () => {
 
         <div className="grid gap-6 xl:grid-cols-[1.2fr_0.8fr]">
           <div className="grid gap-6 sm:grid-cols-2 xl:grid-cols-2">
+            <div className="rounded-3xl border border-[#A97A47] bg-[#FFF0E6] p-6 shadow-sm col-span-full">
+              <div className="flex items-center justify-between">
+                <div>
+                  <p className="text-sm font-semibold text-[#4E3629]">Total Quantity Sold</p>
+                  <p className="mt-3 text-3xl font-semibold text-[#3D312B]">
+                    {totalQuantity?.toLocaleString('id-ID')} <span className="text-lg">units</span>
+                  </p>
+                </div>
+                <div className="flex h-11 w-11 items-center justify-center rounded-2xl bg-[#FF6900] text-white">
+                  <Package className="h-5 w-5" />
+                </div>
+              </div>
+              <p className="mt-4 text-sm text-[#4E3629]">
+                Total number of products sold across the analytics period.
+              </p>
+            </div>
+
             <div className="rounded-3xl border border-[#A97A47] bg-[#FFFFFF] p-6 shadow-sm">
               <div className="flex items-center justify-between">
                 <div>
@@ -313,9 +333,9 @@ const AnalyticsReport = () => {
                 <div key={item.tourGuide} className="flex items-center justify-between rounded-2xl border border-[#A97A47] bg-[#FFFFFF] px-4 py-3">
                   <div>
                     <p className="text-sm font-semibold text-[#3D312B]">{item.tourGuide}</p>
-                    <p className="text-sm text-[#4E3629]\">Sales: {formatRupiah(item.totalSales)}</p>
+                    <p className="text-sm text-[#4E3629]">Sales: {formatRupiah(item.totalSales)}</p>
                   </div>
-                  <span className="rounded-full bg-[#4E3629] px-3 py-1 text-sm font-semibold text-white">
+                  <span className="rounded-full bg-[#FF6900] px-3 py-1 text-sm font-semibold text-white">
                     #{index + 1}
                   </span>
                 </div>
@@ -326,21 +346,21 @@ const AnalyticsReport = () => {
           <div className="rounded-3xl border border-[#A97A47] bg-[#FFFFFF] p-6 shadow-sm">
             <div className="mb-6 flex items-center justify-between">
               <div>
-                <p className="text-sm font-semibold text-[#4E3629]\">Top Artisans</p>
-                <h3 className="mt-2 text-xl font-semibold text-[#4E3629]\">Production champions</h3>
+                <p className="text-sm font-semibold text-[#4E3629]">Top Artisans</p>
+                <h3 className="mt-2 text-xl font-semibold text-[#4E3629]">Production champions</h3>
               </div>
-              <div className="rounded-2xl bg-[#FFF0E6] px-3 py-2 text-sm font-semibold text-[#4E3629]\">
+              <div className="rounded-2xl bg-[#FFF0E6] px-3 py-2 text-sm font-semibold text-[#4E3629]">
                 <TrendingUp className="inline-block h-4 w-4 align-middle" />
               </div>
             </div>
             <div className="space-y-4">
               {topPerformingArtisans.map((item, index) => (
-                <div key={item.artisanName} className="flex items-center justify-between rounded-2xl border border-[#A97A47] bg-[#FFFFFF] px-4 py-3\">
+                <div key={item.artisanName} className="flex items-center justify-between rounded-2xl border border-[#A97A47] bg-[#FFF0E6] px-4 py-3">
                   <div>
-                    <p className="text-sm font-semibold text-[#3D312B]\">{item.artisanName}</p>
-                    <p className="text-sm text-[#4E3629]\">Items sold: {item.totalQuantity}</p>
+                    <p className="text-sm font-semibold text-[#3D312B]">{item.artisanName}</p>
+                    <p className="text-sm text-[#4E3629]">Items sold: {item.totalQuantity}</p>
                   </div>
-                  <span className="rounded-full bg-[#4E3629] px-3 py-1 text-sm font-semibold text-white">
+                  <span className="rounded-full bg-[#FF6900] px-3 py-1 text-sm font-semibold text-white">
                     #{index + 1}
                   </span>
                 </div>

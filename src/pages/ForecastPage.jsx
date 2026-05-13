@@ -1,422 +1,331 @@
-import React, { useState, useEffect } from 'react';
-
-const API_URL = import.meta.env.VITE_API_URL || 'http://localhost:5000/api/v1';
+import React, { useEffect, useMemo, useState } from 'react';
 import {
-  LineChart,
-  Line,
-  XAxis,
-  YAxis,
-  CartesianGrid,
-  Tooltip,
-  Legend,
-  ResponsiveContainer,
-  Area,
-  ComposedChart
-} from 'recharts';
-import {
-  TrendingUp,
-  TrendingDown,
+  AlertCircle,
   BarChart3,
   Calendar,
-  DollarSign,
-  Target,
-  AlertCircle,
   Loader2,
-  Sparkles
+  Package,
+  TrendingDown,
+  TrendingUp
 } from 'lucide-react';
 
-// Mock data for parent products - in real app, fetch from API
-const PARENT_PRODUCTS = [
-  { value: 'Patung Buddha', label: 'Patung Buddha' },
-  { value: 'Patung Ganesha', label: 'Patung Ganesha' },
-  { value: 'Patung Naga', label: 'Patung Naga' },
-  { value: 'Patung Garuda Wisnu', label: 'Patung Garuda Wisnu' },
-  { value: 'Patung Abstrak Modern', label: 'Patung Abstrak Modern' },
-  { value: 'Patung Barong', label: 'Patung Barong' },
-  { value: 'Patung Harimau', label: 'Patung Harimau' }
+const API_URL = import.meta.env.VITE_API_URL || 'http://localhost:5000/api/v1';
+
+const months = [
+  { value: 1, label: 'January' },
+  { value: 2, label: 'February' },
+  { value: 3, label: 'March' },
+  { value: 4, label: 'April' },
+  { value: 5, label: 'May' },
+  { value: 6, label: 'June' },
+  { value: 7, label: 'July' },
+  { value: 8, label: 'August' },
+  { value: 9, label: 'September' },
+  { value: 10, label: 'October' },
+  { value: 11, label: 'November' },
+  { value: 12, label: 'December' }
 ];
 
-// Helper function to generate AI Insight text
-const generateAIInsight = (productName, trend) => {
-  switch (trend) {
-    case 'up':
-      return `Stock for ${productName} should be increased as recent demand is showing a significant upward trend.`;
-    case 'down':
-      return `Consider reducing the inventory for ${productName} as the forecasted demand is declining.`;
-    default:
-      return `Demand for ${productName} is projected to remain stable.`;
-  }
-};
+const currentDate = new Date();
+const currentMonth = currentDate.getMonth() + 1;
+const currentYear = currentDate.getFullYear();
+
+const formatNumber = (value) => Number(value || 0).toLocaleString('id-ID');
 
 const ForecastPage = () => {
-  const [selectedProduct, setSelectedProduct] = useState('Patung Garuda Wisnu');
   const [forecastData, setForecastData] = useState([]);
-  const [fromDate, setFromDate] = useState('');
-  const [toDate, setToDate] = useState('');
+  const [selectedMonth, setSelectedMonth] = useState(currentMonth);
+  const [selectedYear, setSelectedYear] = useState(currentYear);
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState(null);
 
-  const filteredForecastData = forecastData.filter((item) => {
-    const itemDate = new Date(item.fullDate);
-    const from = fromDate ? new Date(fromDate) : null;
-    const to = toDate ? new Date(toDate) : null;
+  const yearOptions = useMemo(
+    () => Array.from({ length: 6 }, (_, index) => currentYear - index),
+    []
+  );
 
-    if (from && itemDate < from) return false;
-    if (to && itemDate > to) return false;
-    return true;
-  });
-
-  // Fetch forecast data
   useEffect(() => {
+    if (selectedYear === currentYear && selectedMonth > currentMonth) {
+      setSelectedMonth(currentMonth);
+    }
+  }, [selectedMonth, selectedYear]);
+
+  useEffect(() => {
+    const controller = new AbortController();
+
     const fetchForecastData = async () => {
       setLoading(true);
       setError(null);
 
       try {
-        console.log(`📊 Fetching forecast for: ${selectedProduct}`);
-        const response = await fetch(`${API_URL}/forecast/${encodeURIComponent(selectedProduct)}`, {
-          method: 'GET',
-          headers: {
-            'Content-Type': 'application/json',
-          }
-        });
+        const queryParams = new URLSearchParams();
+        if (selectedMonth) queryParams.append('month', selectedMonth);
+        if (selectedYear) queryParams.append('year', selectedYear);
 
-        console.log(`Response Status: ${response.status}`);
+        const queryString = queryParams.toString();
+        const response = await fetch(`${API_URL}/forecasts?${queryString ? `${queryString}` : ''}`, {
+          method: 'GET',
+          signal: controller.signal
+        });
 
         if (!response.ok) {
           const errorData = await response.json().catch(() => null);
-          const errorMessage = errorData?.message || `Server error: ${response.status}`;
-          throw new Error(errorMessage);
+          throw new Error(errorData?.message || `Server error: ${response.status}`);
         }
 
         const result = await response.json();
-        console.log(`✓ Received ${result.count || result.data?.length || 0} forecast records`);
 
-        if (result.success && result.data) {
-          // Transform data for chart
-          const transformedData = result.data.map(item => ({
-            date: new Date(item.forecast_date).toLocaleDateString('id-ID'),
-            predicted: item.predicted_demand,
-            lower: item.lower_bound_estimate,
-            upper: item.upper_bound_estimate,
-            fullDate: item.forecast_date
-          }));
+        console.log('Forecast API response:', result);
 
-          setForecastData(transformedData);
+        if (result.success && Array.isArray(result.data)) {
+          setForecastData(result.data);
         } else {
-          throw new Error(result.message || 'No data available - ensure forecast data has been seeded');
+          throw new Error(result.message || 'Invalid forecast response');
         }
       } catch (err) {
-        console.error('❌ Forecast fetch error:', err.message);
-        
-        // Provide helpful error messages
-        let userMessage = err.message;
-        if (err.message.includes('Failed to fetch')) {
-          userMessage = 'Cannot connect to API server. Please ensure the backend is running on port 5000.';
-        } else if (err.message.includes('No forecast data found')) {
-          userMessage = `No forecast data found for "${selectedProduct}". Please run the seed script: npm run seed:forecast`;
+        if (err.name !== 'AbortError') {
+          let userMessage = err.message;
+
+          if (err.message.includes('Failed to fetch')) {
+            userMessage = 'Cannot connect to API server. Please ensure the backend is running on port 5000.';
+          }
+
+          setError(userMessage);
+          setForecastData([]);
         }
-        
-        setError(userMessage);
-        setForecastData([]);
       } finally {
         setLoading(false);
       }
     };
 
     fetchForecastData();
-  }, [selectedProduct]);
+    return () => controller.abort();
+  }, [selectedMonth, selectedYear]);
 
-  // Calculate KPIs
-  const totalPredicted = filteredForecastData.reduce((sum, item) => sum + item.predicted, 0);
-  const avgConfidence = filteredForecastData.length > 0
-    ? filteredForecastData.reduce((sum, item) => sum + (item.upper - item.lower), 0) / filteredForecastData.length
-    : 0;
-  const trend = filteredForecastData.length > 1
-    ? (filteredForecastData[filteredForecastData.length - 1].predicted > filteredForecastData[0].predicted ? 'up' : 'down')
-    : 'neutral';
-
-  const CustomTooltip = ({ active, payload, label }) => {
-    if (active && payload && payload.length) {
-      const data = payload[0].payload;
-      return (
-        <div className="bg-white p-4 border border-gray-200 rounded-lg shadow-lg">
-          <p className="font-semibold text-gray-800">{`Date: ${label}`}</p>
-          <p className="text-blue-600">{`Predicted: Rp ${data.predicted.toLocaleString()}`}</p>
-          <p className="text-green-600">{`Lower: Rp ${data.lower.toLocaleString()}`}</p>
-          <p className="text-red-600">{`Upper: Rp ${data.upper.toLocaleString()}`}</p>
-        </div>
-      );
-    }
-    return null;
-  };
+  const selectedMonthLabel = months.find((month) => month.value === Number(selectedMonth))?.label;
+  const totalProducts = forecastData.length;
+  const totalActualStock = forecastData.reduce((sum, item) => sum + Number(item.actual_stock || 0), 0);
+  const totalPredictedStock = forecastData.reduce((sum, item) => sum + Number(item.predicted_stock || 0), 0);
+  const totalRemainingStock = forecastData.reduce((sum, item) => sum + Number(item.remaining_stock || 0), 0);
+  const productsNeedRestock = forecastData.filter((item) => Number(item.remaining_stock || 0) > 0).length;
 
   return (
-    <div className="min-h-screen bg-gray-50">
-      {/* Header */}
-      <header className="bg-white shadow-sm border-b border-gray-200">
-        <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8">
-          <div className="flex justify-between items-center py-4">
-            <div className="flex items-center">
-              <BarChart3 className="h-8 w-8 text-[#4E3629] mr-3" />
-              <h1 className="text-2xl font-bold text-[#4E3629]">Sales Forecasting Dashboard</h1>
+    <div className="min-h-screen bg-[#FFFFFF] text-[#3D312B]">
+      <header className="border-b border-[#E7D8C7] bg-white">
+        <div className="mx-auto flex max-w-7xl flex-col gap-3 px-4 py-5 sm:px-6 md:flex-row md:items-center md:justify-between lg:px-8">
+          <div className="flex items-center gap-3">
+            <div className="flex h-11 w-11 items-center justify-center rounded-lg bg-[#FFF0E6] text-[#FF6900]">
+              <BarChart3 className="h-6 w-6" />
             </div>
-            <div className="text-sm text-[#4E3629]">
-              KriyaLogic ERP System
+            <div>
+              <h1 className="text-2xl font-bold text-[#4E3629]">Forecast Dashboard</h1>
+              <p className="text-sm text-[#6B5142]">Global product stock forecast</p>
             </div>
           </div>
+          <div className="text-sm font-medium text-[#4E3629]">KriyaLogic ERP System</div>
         </div>
       </header>
 
-      <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-8">
-        {/* Product Selector */}
-        <div className="mb-8 grid gap-4 lg:grid-cols-[1fr_1fr] items-end">
+      <main className="mx-auto max-w-7xl px-4 py-8 sm:px-6 lg:px-8">
+        <div className="mb-8 grid gap-4 md:grid-cols-[1fr_auto] md:items-end">
           <div>
-            <label htmlFor="product-select" className="block text-sm font-medium text-[#4E3629] mb-2">
-              Select Parent Product
-            </label>
-            <select
-              id="product-select"
-              value={selectedProduct}
-              onChange={(e) => setSelectedProduct(e.target.value)}
-              className="block w-full max-w-xs px-3 py-2 border border-[#A97A47] rounded-md bg-[#FFFFFF] shadow-sm focus:outline-none focus:ring-[#FF6900] focus:border-[#FF6900] text-[#3D312B]"
-            >
-              {PARENT_PRODUCTS.map(product => (
-                <option key={product.value} value={product.value}>
-                  {product.label}
-                </option>
-              ))}
-            </select>
+            <p className="text-sm font-semibold uppercase tracking-[0.18em] text-[#FF6900]">Forecast Period</p>
+            <h2 className="mt-2 text-3xl font-semibold tracking-tight text-[#4E3629]">
+              {selectedMonthLabel} {selectedYear}
+            </h2>
+            <p className="mt-2 max-w-2xl text-sm text-[#6B5142]">
+              Forecast data is loaded globally from all products. Future months are disabled because sales data is not available yet.
+            </p>
           </div>
-          <div className="grid grid-cols-2 gap-4 max-w-md">
-            <div>
-              <label htmlFor="from-date" className="block text-sm font-medium text-[#4E3629] mb-2">
-                From
+
+          <div className="grid gap-3 sm:grid-cols-2">
+            <div className="space-y-2">
+              <label htmlFor="forecast-month" className="block text-sm font-medium text-[#4E3629]">
+                Month
               </label>
-              <input
-                id="from-date"
-                type="date"
-                value={fromDate}
-                onChange={(e) => setFromDate(e.target.value)}
-                className="block w-full px-3 py-2 border border-[#A97A47] rounded-md bg-[#FFFFFF] outline-none focus:ring-[#FF6900] focus:border-[#FF6900] text-[#3D312B]"
-              />
+              <select
+                id="forecast-month"
+                value={selectedMonth}
+                onChange={(event) => setSelectedMonth(Number(event.target.value))}
+                className="h-12 w-full min-w-44 rounded-lg border border-[#A97A47] bg-white px-4 text-[#3D312B] outline-none focus:border-[#FF6900] focus:ring-2 focus:ring-[#FFD9B3]"
+              >
+                {months.map((month) => (
+                  <option
+                    key={month.value}
+                    value={month.value}
+                    disabled={selectedYear === currentYear && month.value > currentMonth}
+                  >
+                    {month.label}
+                  </option>
+                ))}
+              </select>
             </div>
-            <div>
-              <label htmlFor="to-date" className="block text-sm font-medium text-[#4E3629] mb-2">
-                To
+
+            <div className="space-y-2">
+              <label htmlFor="forecast-year" className="block text-sm font-medium text-[#4E3629]">
+                Year
               </label>
-              <input
-                id="to-date"
-                type="date"
-                value={toDate}
-                onChange={(e) => setToDate(e.target.value)}
-                className="block w-full px-3 py-2 border border-[#A97A47] rounded-md bg-[#FFFFFF] outline-none focus:ring-[#FF6900] focus:border-[#FF6900] text-[#3D312B]"
-              />
+              <select
+                id="forecast-year"
+                value={selectedYear}
+                onChange={(event) => setSelectedYear(Number(event.target.value))}
+                className="h-12 w-full min-w-32 rounded-lg border border-[#A97A47] bg-white px-4 text-[#3D312B] outline-none focus:border-[#FF6900] focus:ring-2 focus:ring-[#FFD9B3]"
+              >
+                {yearOptions.map((year) => (
+                  <option key={year} value={year}>
+                    {year}
+                  </option>
+                ))}
+              </select>
             </div>
           </div>
         </div>
 
-        {/* KPI Cards */}
-        <div className="grid grid-cols-1 md:grid-cols-3 gap-6 mb-8">
-          <div className="bg-[#FFFFFF] p-6 rounded-lg shadow-sm border border-[#A97A47]">
-            <div className="flex items-center">
-              <DollarSign className="h-8 w-8 text-[#FF6900] mr-3" />
+        <div className="mb-8 grid grid-cols-1 gap-5 md:grid-cols-2 xl:grid-cols-4">
+          <div className="rounded-lg border border-[#A97A47] bg-[#FFF0E6] p-5 shadow-sm">
+            <div className="flex items-center justify-between gap-4">
               <div>
-                <p className="text-sm font-medium text-[#4E3629]">Total Predicted Demand</p>
-                <p className="text-2xl font-bold text-[#3D312B]">
-                  Rp {totalPredicted.toLocaleString()}
-                </p>
-                <p className="text-xs text-gray-500">Next 30 days</p>
+                <p className="text-sm font-semibold text-[#4E3629]">Total Products</p>
+                <p className="mt-3 text-3xl font-bold text-[#3D312B]">{formatNumber(totalProducts)}</p>
               </div>
+              <Package className="h-8 w-8 text-[#FF6900]" />
             </div>
           </div>
 
-          <div className="bg-[#FFFFFF] p-6 rounded-lg shadow-sm border border-[#A97A47]">
-            <div className="flex items-center">
-              <Target className="h-8 w-8 text-[#FF6900] mr-3" />
+          <div className="rounded-lg border border-[#A97A47] bg-white p-5 shadow-sm">
+            <div className="flex items-center justify-between gap-4">
               <div>
-                <p className="text-sm font-medium text-[#4E3629]">Average Confidence Range</p>
-                <p className="text-2xl font-bold text-[#3D312B]">
-                  Rp {avgConfidence.toLocaleString()}
-                </p>
-                <p className="text-xs text-gray-500">Prediction margin</p>
+                <p className="text-sm font-semibold text-[#4E3629]">Actual Stock</p>
+                <p className="mt-3 text-3xl font-bold text-[#3D312B]">{formatNumber(totalActualStock)}</p>
               </div>
+              <BarChart3 className="h-8 w-8 text-[#FF6900]" />
             </div>
           </div>
 
-          <div className="bg-white p-6 rounded-lg shadow-sm border border-gray-200">
-            <div className="flex items-center">
-              {trend === 'up' ? (
-                <TrendingUp className="h-8 w-8 text-green-600 mr-3" />
-              ) : trend === 'down' ? (
-                <TrendingDown className="h-8 w-8 text-red-600 mr-3" />
-              ) : (
-                <BarChart3 className="h-8 w-8 text-gray-600 mr-3" />
-              )}
+          <div className="rounded-lg border border-[#A97A47] bg-white p-5 shadow-sm">
+            <div className="flex items-center justify-between gap-4">
               <div>
-                <p className="text-sm font-medium text-[#4E3629]">Trend Analysis</p>
-                <p className={`text-2xl font-bold ${
-                  trend === 'up' ? 'text-green-600' :
-                  trend === 'down' ? 'text-red-600' : 'text-gray-900'
-                }`}>
-                  {trend === 'up' ? 'Growing' : trend === 'down' ? 'Declining' : 'Stable'}
-                </p>
-                <p className="text-xs text-gray-500">30-day forecast</p>
+                <p className="text-sm font-semibold text-[#4E3629]">Predicted Stock</p>
+                <p className="mt-3 text-3xl font-bold text-[#3D312B]">{formatNumber(totalPredictedStock)}</p>
               </div>
+              <TrendingUp className="h-8 w-8 text-[#FF6900]" />
+            </div>
+          </div>
+
+          <div className="rounded-lg border border-[#A97A47] bg-white p-5 shadow-sm">
+            <div className="flex items-center justify-between gap-4">
+              <div>
+                <p className="text-sm font-semibold text-[#4E3629]">Need Restock</p>
+                <p className="mt-3 text-3xl font-bold text-[#3D312B]">{formatNumber(productsNeedRestock)}</p>
+              </div>
+              <Calendar className="h-8 w-8 text-[#FF6900]" />
             </div>
           </div>
         </div>
 
-        {/* AI Insight */}
-        {!loading && !error && filteredForecastData.length > 0 && (
-          <div className="bg-[#FFFFFF] border border-[#A97A47] rounded-lg p-6 mb-8">
-            <div className="flex items-start">
-              <Sparkles className="h-6 w-6 text-[#FF6900] mr-3 mt-0.5" />
-              <div>
-                <h3 className="text-lg font-semibold text-[#4E3629] mb-2">AI Insight & Recommendation</h3>
-                <p className="text-[#4E3629] leading-relaxed">
-                  {generateAIInsight(selectedProduct, trend)}
-                </p>
-              </div>
-            </div>
-          </div>
-        )}
-
-        {/* Loading State */}
         {loading && (
-          <div className="flex items-center justify-center py-12">
-            <Loader2 className="h-8 w-8 animate-spin text-[#FF6900] mr-3" />
+          <div className="flex items-center justify-center rounded-lg border border-[#A97A47] bg-white py-12 shadow-sm">
+            <Loader2 className="mr-3 h-8 w-8 animate-spin text-[#FF6900]" />
             <span className="text-[#4E3629]">Loading forecast data...</span>
           </div>
         )}
 
-        {/* Error State */}
         {error && (
-          <div className="bg-red-50 border border-red-200 rounded-lg p-4 mb-8">
+          <div className="mb-8 rounded-lg border border-red-200 bg-red-50 p-4">
             <div className="flex items-center">
-              <AlertCircle className="h-5 w-5 text-red-600 mr-3" />
+              <AlertCircle className="mr-3 h-5 w-5 text-red-600" />
               <div>
                 <h3 className="text-sm font-medium text-red-800">Error loading data</h3>
-                <p className="text-sm text-red-600 mt-1">{error}</p>
+                <p className="mt-1 text-sm text-red-600">{error}</p>
               </div>
             </div>
           </div>
         )}
 
-        {/* Chart */}
-        {!loading && !error && filteredForecastData.length > 0 && (
-          <div className="bg-[#FFFFFF] p-6 rounded-lg shadow-sm border border-[#A97A47] mb-8">
-            <h2 className="text-lg font-semibold text-[#4E3629] mb-4">
-              Sales Forecast for {selectedProduct}
-            </h2>
-            <div className="h-96">
-              <ResponsiveContainer width="100%" height="100%">
-                <ComposedChart data={filteredForecastData} margin={{ top: 5, right: 30, left: 20, bottom: 5 }}>
-                  <CartesianGrid strokeDasharray="3 3" />
-                  <XAxis dataKey="date" />
-                  <YAxis tickFormatter={(value) => `Rp ${value.toLocaleString()}`} />
-                  <Tooltip content={<CustomTooltip />} />
-                  <Legend />
-
-                  {/* Uncertainty Area */}
-                  <Area
-                    type="monotone"
-                    dataKey="upper"
-                    stackId="1"
-                    stroke="none"
-                    fill="#FFFFFF"
-                    fillOpacity={0.3}
-                  />
-                  <Area
-                    type="monotone"
-                    dataKey="lower"
-                    stackId="1"
-                    stroke="none"
-                    fill="#4E3629"
-                    fillOpacity={1}
-                  />
-
-                  {/* Forecast Line */}
-                  <Line
-                    type="monotone"
-                    dataKey="predicted"
-                    stroke="#FF6900"
-                    strokeWidth={2}
-                    strokeDasharray="5 5"
-                    name="Predicted Demand"
-                    dot={{ fill: '#FF6900', strokeWidth: 2, r: 4 }}
-                  />
-                </ComposedChart>
-              </ResponsiveContainer>
-            </div>
-            <div className="mt-4 text-sm text-gray-600">
-              <div className="flex items-center space-x-4">
-                <div className="flex items-center">
-                  <div className="w-4 h-0.5 bg-[#FF6900] mr-2" style={{borderStyle: 'dashed'}}></div>
-                  <span>Predicted Demand</span>
-                </div>
-                <div className="flex items-center">
-                  <div className="w-4 h-2 bg-[#FFD9B3] mr-2"></div>
-                  <span>Confidence Interval</span>
-                </div>
+        {!loading && !error && (
+          <div className="overflow-hidden rounded-lg border border-[#A97A47] bg-white shadow-sm">
+            <div className="flex flex-col gap-2 border-b border-[#E7D8C7] px-6 py-4 md:flex-row md:items-center md:justify-between">
+              <div>
+                <h3 className="text-lg font-semibold text-[#4E3629]">Forecast Details</h3>
+                <p className="text-sm text-[#6B5142]">
+                  {formatNumber(totalProducts)} products for {selectedMonthLabel} {selectedYear}
+                </p>
+              </div>
+              <div className={`inline-flex w-fit items-center gap-2 rounded-full px-3 py-1 text-sm font-medium ${
+                totalRemainingStock < 0
+                  ? 'bg-red-50 text-red-700'
+                  : 'bg-green-50 text-green-700'
+              }`}>
+                {totalRemainingStock < 0 ? (
+                  <TrendingDown className="h-4 w-4" />
+                ) : (
+                  <TrendingUp className="h-4 w-4" />
+                )}
+                Remaining stock: {formatNumber(totalRemainingStock)}
               </div>
             </div>
-          </div>
-        )}
 
-        {/* Data Table */}
-        {!loading && !error && filteredForecastData.length > 0 && (
-          <div className="bg-[#FFFFFF] rounded-lg shadow-sm border border-[#A97A47] overflow-hidden">
-            <div className="px-6 py-4 border-b border-[#A97A47]">
-              <h3 className="text-lg font-medium text-[#4E3629]">Forecast Details</h3>
-            </div>
             <div className="overflow-x-auto">
-              <table className="min-w-full divide-y divide-[#A97A47]">
+              <table className="min-w-full divide-y divide-[#E7D8C7]">
                 <thead className="bg-[#F9FAFB]">
                   <tr>
-                    <th className="px-6 py-3 text-left text-xs font-medium text-[#4E3629] uppercase tracking-wider">
-                      Date
+                    <th className="px-6 py-3 text-left text-xs font-semibold uppercase tracking-wider text-[#4E3629]">
+                      Nama Produk
                     </th>
-                    <th className="px-6 py-3 text-left text-xs font-medium text-[#4E3629] uppercase tracking-wider">
-                      Predicted Quantity
+                    <th className="px-6 py-3 text-left text-xs font-semibold uppercase tracking-wider text-[#4E3629]">
+                      Kode Produk
                     </th>
-                    <th className="px-6 py-3 text-left text-xs font-medium text-[#4E3629] uppercase tracking-wider">
-                      Lower Bound
+                    <th className="px-6 py-3 text-right text-xs font-semibold uppercase tracking-wider text-[#4E3629]">
+                      Actual Stock
                     </th>
-                    <th className="px-6 py-3 text-left text-xs font-medium text-[#4E3629] uppercase tracking-wider">
-                      Upper Bound
+                    <th className="px-6 py-3 text-right text-xs font-semibold uppercase tracking-wider text-[#4E3629]">
+                      Predicted Stock
                     </th>
-                    <th className="px-6 py-3 text-left text-xs font-medium text-[#4E3629] uppercase tracking-wider">
-                      Range
+                    <th className="px-6 py-3 text-right text-xs font-semibold uppercase tracking-wider text-[#4E3629]">
+                      Remaining Stock
                     </th>
                   </tr>
                 </thead>
-                <tbody className="bg-white divide-y divide-gray-200">
-                  {filteredForecastData.map((item, index) => (
-                    <tr key={index} className={index % 2 === 0 ? 'bg-white' : 'bg-[#F9FAFB]'}>
-                      <td className="px-6 py-4 whitespace-nowrap text-sm text-[#3D312B]">
-                        {item.date}
-                      </td>
-                      <td className="px-6 py-4 whitespace-nowrap text-sm text-[#3D312B]">
-                        Rp {item.predicted.toLocaleString()}
-                      </td>
-                      <td className="px-6 py-4 whitespace-nowrap text-sm text-[#3D312B]">
-                        Rp {item.lower.toLocaleString()}
-                      </td>
-                      <td className="px-6 py-4 whitespace-nowrap text-sm text-[#3D312B]">
-                        Rp {item.upper.toLocaleString()}
-                      </td>
-                      <td className="px-6 py-4 whitespace-nowrap text-sm text-[#3D312B]">
-                        Rp {(item.upper - item.lower).toLocaleString()}
+                <tbody className="divide-y divide-gray-200 bg-white">
+                  {forecastData.length > 0 ? (
+                    forecastData.map((item, index) => {
+                      const remainingStock = Number(item.remaining_stock || 0);
+
+                      return (
+                        <tr key={`${item.product_code}-${index}`} className={index % 2 === 0 ? 'bg-white' : 'bg-[#F9FAFB]'}>
+                          <td className="whitespace-nowrap px-6 py-4 text-sm font-medium text-[#3D312B]">
+                            {item.product_name || '-'}
+                          </td>
+                          <td className="whitespace-nowrap px-6 py-4 text-sm text-[#3D312B]">
+                            {item.product_code || '-'}
+                          </td>
+                          <td className="whitespace-nowrap px-6 py-4 text-right text-sm text-[#3D312B]">
+                            {formatNumber(item.actual_stock)}
+                          </td>
+                          <td className="whitespace-nowrap px-6 py-4 text-right text-sm text-[#3D312B]">
+                            {formatNumber(item.predicted_stock)}
+                          </td>
+                          <td className={`whitespace-nowrap px-6 py-4 text-right text-sm font-semibold ${
+                            remainingStock < 0 ? 'text-red-600' : 'text-green-700'
+                          }`}>
+                            {formatNumber(remainingStock)}
+                          </td>
+                        </tr>
+                      );
+                    })
+                  ) : (
+                    <tr>
+                      <td colSpan="5" className="px-6 py-12 text-center text-sm text-[#6B5142]">
+                        No forecast data available for this period.
                       </td>
                     </tr>
-                  ))}
+                  )}
                 </tbody>
               </table>
             </div>
           </div>
         )}
-      </div>
+      </main>
     </div>
   );
 };

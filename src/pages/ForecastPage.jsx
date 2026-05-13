@@ -114,7 +114,7 @@ const ForecastPage = () => {
       <header className="border-b border-[#E7D8C7] bg-white">
         <div className="mx-auto flex max-w-7xl flex-col gap-3 px-4 py-5 sm:px-6 md:flex-row md:items-center md:justify-between lg:px-8">
           <div className="flex items-center gap-3">
-            <div className="flex h-11 w-11 items-center justify-center rounded-lg bg-[#FFF0E6] text-[#FF6900]">
+            <div className="flex h-11 w-11 items-center justify-center rounded-lg bg-[#FFF0E6] text-[#4E3629]">
               <BarChart3 className="h-6 w-6" />
             </div>
             <div>
@@ -129,7 +129,7 @@ const ForecastPage = () => {
       <main className="mx-auto max-w-7xl px-4 py-8 sm:px-6 lg:px-8">
         <div className="mb-8 grid gap-4 md:grid-cols-[1fr_auto] md:items-end">
           <div>
-            <p className="text-sm font-semibold uppercase tracking-[0.18em] text-[#FF6900]">Forecast Period</p>
+            <p className="text-sm font-semibold uppercase tracking-[0.18em] text-[#4E3629]">Forecast Period</p>
             <h2 className="mt-2 text-3xl font-semibold tracking-tight text-[#4E3629]">
               {selectedMonthLabel} {selectedYear}
             </h2>
@@ -147,7 +147,7 @@ const ForecastPage = () => {
                 id="forecast-month"
                 value={selectedMonth}
                 onChange={(event) => setSelectedMonth(Number(event.target.value))}
-                className="h-12 w-full min-w-44 rounded-lg border border-[#A97A47] bg-white px-4 text-[#3D312B] outline-none focus:border-[#FF6900] focus:ring-2 focus:ring-[#FFD9B3]"
+                className="h-12 w-full min-w-44 rounded-lg border border-[#A97A47] bg-white px-4 text-[#3D312B] outline-none focus:border-[#4E3629] focus:ring-2 focus:ring-[#FFD9B3]"
               >
                 {months.map((month) => (
                   <option
@@ -169,7 +169,7 @@ const ForecastPage = () => {
                 id="forecast-year"
                 value={selectedYear}
                 onChange={(event) => setSelectedYear(Number(event.target.value))}
-                className="h-12 w-full min-w-32 rounded-lg border border-[#A97A47] bg-white px-4 text-[#3D312B] outline-none focus:border-[#FF6900] focus:ring-2 focus:ring-[#FFD9B3]"
+                className="h-12 w-full min-w-32 rounded-lg border border-[#A97A47] bg-white px-4 text-[#3D312B] outline-none focus:border-[#4E3629] focus:ring-2 focus:ring-[#FFD9B3]"
               >
                 {yearOptions.map((year) => (
                   <option key={year} value={year}>
@@ -188,7 +188,7 @@ const ForecastPage = () => {
                 <p className="text-sm font-semibold text-[#4E3629]">Total Products</p>
                 <p className="mt-3 text-3xl font-bold text-[#3D312B]">{formatNumber(totalProducts)}</p>
               </div>
-              <Package className="h-8 w-8 text-[#FF6900]" />
+              <Package className="h-8 w-8 text-[#4E3629]" />
             </div>
           </div>
 
@@ -198,7 +198,7 @@ const ForecastPage = () => {
                 <p className="text-sm font-semibold text-[#4E3629]">Actual Stock</p>
                 <p className="mt-3 text-3xl font-bold text-[#3D312B]">{formatNumber(totalActualStock)}</p>
               </div>
-              <BarChart3 className="h-8 w-8 text-[#FF6900]" />
+              <BarChart3 className="h-8 w-8 text-[#4E3629]" />
             </div>
           </div>
 
@@ -208,7 +208,7 @@ const ForecastPage = () => {
                 <p className="text-sm font-semibold text-[#4E3629]">Predicted Stock</p>
                 <p className="mt-3 text-3xl font-bold text-[#3D312B]">{formatNumber(totalPredictedStock)}</p>
               </div>
-              <TrendingUp className="h-8 w-8 text-[#FF6900]" />
+              <TrendingUp className="h-8 w-8 text-[#4E3629]" />
             </div>
           </div>
 
@@ -218,14 +218,14 @@ const ForecastPage = () => {
                 <p className="text-sm font-semibold text-[#4E3629]">Need Restock</p>
                 <p className="mt-3 text-3xl font-bold text-[#3D312B]">{formatNumber(productsNeedRestock)}</p>
               </div>
-              <Calendar className="h-8 w-8 text-[#FF6900]" />
+              <Calendar className="h-8 w-8 text-[#4E3629]" />
             </div>
           </div>
         </div>
 
         {loading && (
           <div className="flex items-center justify-center rounded-lg border border-[#A97A47] bg-white py-12 shadow-sm">
-            <Loader2 className="mr-3 h-8 w-8 animate-spin text-[#FF6900]" />
+            <Loader2 className="mr-3 h-8 w-8 animate-spin text-[#4E3629]" />
             <span className="text-[#4E3629]">Loading forecast data...</span>
           </div>
         )}
@@ -270,10 +270,10 @@ const ForecastPage = () => {
                 <thead className="bg-[#F9FAFB]">
                   <tr>
                     <th className="px-6 py-3 text-left text-xs font-semibold uppercase tracking-wider text-[#4E3629]">
-                      Nama Produk
+                      Product Name
                     </th>
                     <th className="px-6 py-3 text-left text-xs font-semibold uppercase tracking-wider text-[#4E3629]">
-                      Kode Produk
+                      Product Code
                     </th>
                     <th className="px-6 py-3 text-right text-xs font-semibold uppercase tracking-wider text-[#4E3629]">
                       Actual Stock

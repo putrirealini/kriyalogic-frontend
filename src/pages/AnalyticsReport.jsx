@@ -136,7 +136,7 @@ const AnalyticsReport = () => {
       <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-8">
         <div className="mb-6 flex flex-col gap-4 md:flex-row md:items-end md:justify-between">
           <div>
-            <p className="text-sm font-semibold uppercase tracking-[0.2em] text-[#FF6900]">Analytics Report</p>
+            <p className="text-sm font-semibold uppercase tracking-[0.2em] text-[#4E3629]">Analytics Report</p>
             <h1 className="mt-2 text-3xl font-semibold tracking-tight text-[#4E3629]">
               Business performance overview
             </h1>
@@ -145,7 +145,7 @@ const AnalyticsReport = () => {
             </p>
           </div>
           <div className="inline-flex items-center gap-2 rounded-full border border-[#A97A47] bg-[#FFFFFF] px-4 py-2 shadow-sm">
-            <Sparkles className="h-5 w-5 text-[#FF6900]" />
+            <Sparkles className="h-5 w-5 text-[#4E3629]" />
             <span className="text-sm font-medium text-[#4E3629]">
               {loading ? 'Loading live data...' : error ? 'Mock data active' : 'Live data connected'}
             </span>
@@ -159,7 +159,7 @@ const AnalyticsReport = () => {
               type="date"
               value={fromDate}
               onChange={(e) => setFromDate(e.target.value)}
-              className="w-full h-12 rounded-xl border border-[#A97A47] bg-[#FFFFFF] px-4 outline-none focus:ring-2 focus:ring-[#FF6900]"
+              className="w-full h-12 rounded-xl border border-[#A97A47] bg-[#FFFFFF] px-4 outline-none focus:ring-2 focus:ring-[#4E3629]"
             />
           </div>
           <div className="space-y-2">
@@ -168,7 +168,7 @@ const AnalyticsReport = () => {
               type="date"
               value={toDate}
               onChange={(e) => setToDate(e.target.value)}
-              className="w-full h-12 rounded-xl border border-[#A97A47] bg-[#FFFFFF] px-4 outline-none focus:ring-2 focus:ring-[#FF6900]"
+              className="w-full h-12 rounded-xl border border-[#A97A47] bg-[#FFFFFF] px-4 outline-none focus:ring-2 focus:ring-[#4E3629]"
             />
           </div>
           <div className="col-span-2 flex items-end justify-end">
@@ -194,7 +194,7 @@ const AnalyticsReport = () => {
                     {totalQuantity?.toLocaleString('id-ID')} <span className="text-lg">units</span>
                   </p>
                 </div>
-                <div className="flex h-11 w-11 items-center justify-center rounded-2xl bg-[#FF6900] text-white">
+                <div className="flex h-11 w-11 items-center justify-center rounded-2xl bg-[#4E3629] text-white">
                   <Package className="h-5 w-5" />
                 </div>
               </div>
@@ -211,7 +211,7 @@ const AnalyticsReport = () => {
                     {formatRupiah(totalRevenue)}
                   </p>
                 </div>
-                <div className="flex h-11 w-11 items-center justify-center rounded-2xl bg-[#FFD9B3] text-[#FF6900]">
+                <div className="flex h-11 w-11 items-center justify-center rounded-2xl bg-[#FFD9B3] text-[#4E3629]">
                   <ArrowUpRight className="h-5 w-5" />
                 </div>
               </div>
@@ -226,7 +226,7 @@ const AnalyticsReport = () => {
                   <p className="text-sm font-semibold text-[#4E3629]">Net Profit</p>
                   <p className="mt-3 text-3xl font-semibold text-[#3D312B]">{formatRupiah(netProfit)}</p>
                 </div>
-                <div className="flex h-11 w-11 items-center justify-center rounded-2xl bg-[#FFD9B3] text-[#FF6900]">
+                <div className="flex h-11 w-11 items-center justify-center rounded-2xl bg-[#FFD9B3] text-[#4E3629]">
                   <ShieldCheck className="h-5 w-5" />
                 </div>
               </div>
@@ -241,7 +241,7 @@ const AnalyticsReport = () => {
                   <p className="text-sm font-semibold text-[#4E3629]">Delivery Profit (15%)</p>
                   <p className="mt-3 text-3xl font-semibold text-[#3D312B]">{formatRupiah(deliveryProfit)}</p>
                 </div>
-                <div className="flex h-11 w-11 items-center justify-center rounded-2xl bg-[#FFD9B3] text-[#FF6900]">
+                <div className="flex h-11 w-11 items-center justify-center rounded-2xl bg-[#FFD9B3] text-[#4E3629]">
                   <TrendingUp className="h-5 w-5" />
                 </div>
               </div>
@@ -256,7 +256,7 @@ const AnalyticsReport = () => {
                   <p className="text-sm font-semibold text-[#4E3629]">Total Commission Expenses</p>
                   <p className="mt-3 text-3xl font-semibold text-[#3D312B]">{formatRupiah(totalCommissionExpenses)}</p>
                 </div>
-                <div className="flex h-11 w-11 items-center justify-center rounded-2xl bg-[#FFD9B3] text-[#FF6900]">
+                <div className="flex h-11 w-11 items-center justify-center rounded-2xl bg-[#FFD9B3] text-[#4E3629]">
                   <Trophy className="h-5 w-5" />
                 </div>
               </div>
@@ -335,7 +335,7 @@ const AnalyticsReport = () => {
                     <p className="text-sm font-semibold text-[#3D312B]">{item.tourGuide}</p>
                     <p className="text-sm text-[#4E3629]">Sales: {formatRupiah(item.totalSales)}</p>
                   </div>
-                  <span className="rounded-full bg-[#FF6900] px-3 py-1 text-sm font-semibold text-white">
+                  <span className="rounded-full bg-[#4E3629] px-3 py-1 text-sm font-semibold text-white">
                     #{index + 1}
                   </span>
                 </div>
@@ -360,7 +360,7 @@ const AnalyticsReport = () => {
                     <p className="text-sm font-semibold text-[#3D312B]">{item.artisanName}</p>
                     <p className="text-sm text-[#4E3629]">Items sold: {item.totalQuantity}</p>
                   </div>
-                  <span className="rounded-full bg-[#FF6900] px-3 py-1 text-sm font-semibold text-white">
+                  <span className="rounded-full bg-[#4E3629] px-3 py-1 text-sm font-semibold text-white">
                     #{index + 1}
                   </span>
                 </div>

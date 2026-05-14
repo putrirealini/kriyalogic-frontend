@@ -74,6 +74,7 @@ const ForecastPage = () => {
         }
 
         const result = await response.json();
+        console.log('Raw API response:', result);
 
         console.log('Forecast API response:', result);
 

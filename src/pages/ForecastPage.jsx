@@ -1,4 +1,4 @@
-import React, { useEffect, useMemo, useState } from 'react';
+import React, { useEffect, useMemo, useRef, useState } from 'react';
 import {
   AlertCircle,
   BarChart3,
@@ -61,6 +61,7 @@ const ForecastPage = () => {
         const queryParams = new URLSearchParams();
         if (selectedMonth) queryParams.append('month', selectedMonth);
         if (selectedYear) queryParams.append('year', selectedYear);
+        const userMenuRef = useRef(null);
 
         const queryString = queryParams.toString();
         const response = await fetch(`${API_URL}/forecasts?${queryString ? `${queryString}` : ''}`, {

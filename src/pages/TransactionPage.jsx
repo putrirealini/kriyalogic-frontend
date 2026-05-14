@@ -57,6 +57,7 @@ const formatVerifiedDate = (value) => {
 };
 
 const TransactionPage = () => {
+    const [isUserMenuOpen, setIsUserMenuOpen] = useState(false);
     const [selectedDate, setSelectedDate] = useState(getTodayDate());
     const [actualCash, setActualCash] = useState('');
     const [cashierNotes, setCashierNotes] = useState('');
@@ -154,13 +155,38 @@ const TransactionPage = () => {
                         onChange={(e) => setSelectedDate(e.target.value)}
                         className="h-[36px] w-[150px] rounded-[10px] border border-[#D8D8D8] bg-white px-4 text-center text-xs text-[#6F625C] outline-none focus:ring-2 focus:ring-[#6A4734]"
                     />
-                    <button
-                        type="button"
-                        className="w-10 h-10 bg-black rounded-full flex items-center justify-center text-white shrink-0"
-                        aria-label="User profile"
-                    >
-                        <User className="w-5 h-5" />
-                    </button>
+                    <div className="relative" ref={userMenuRef}>
+                        <button
+                            onClick={() => setIsUserMenuOpen((prev) => !prev)}
+                            className="w-10 h-10 bg-[#4E3629] rounded-full flex items-center justify-center text-white hover:opacity-90 transition-opacity focus:outline-none shadow-sm"
+                        >
+                            <User size={20} />
+                        </button>
+
+                        {isUserMenuOpen && (
+                            <div className="absolute top-full right-0 mt-2 w-56 bg-white rounded-xl shadow-lg border border-gray-100 py-2 z-50">
+                                <div className="px-4 py-3 border-b border-gray-100">
+                                    <p className="text-sm font-bold text-gray-900 truncate">
+                                        {user?.username || 'User'}
+                                    </p>
+                                    <p className="text-xs text-gray-500 truncate">
+                                        {user?.email || 'user@example.com'}
+                                    </p>
+                                    <p className="text-[10px] uppercase tracking-wider font-semibold text-[#6A4734] mt-1">
+                                        {user?.role || 'Cashier'}
+                                    </p>
+                                </div>
+
+                                <button
+                                    onClick={handleLogout}
+                                    className="w-full text-left px-4 py-2 text-sm text-red-600 hover:bg-red-50 flex items-center gap-2 transition-colors cursor-pointer"
+                                >
+                                    <LogOut size={16} />
+                                    Logout
+                                </button>
+                            </div>
+                        )}
+                    </div>
                 </div>
             </div>
 

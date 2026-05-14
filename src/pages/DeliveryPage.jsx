@@ -1,490 +1,636 @@
-import React, { useEffect, useMemo, useState } from 'react';
+import React, { useMemo, useRef, useState } from 'react';
 import {
-    BadgeDollarSign,
-    ChartNoAxesCombined,
-    Download,
-    Flag,
-    ShoppingBag,
-    Trophy,
     User,
-    WalletCards
+    LogOut,
+    PackageCheck,
+    Truck,
+    CalendarClock,
+    Search
 } from 'lucide-react';
-import useDailyReport from '../hooks/useDailyReport';
+import { useAuth } from '../context/AuthContext';
+import { useNavigate } from 'react-router-dom';
+
+const STORE_PROFIT_PERCENT = 15;
 
 const formatRupiah = (value) => {
-    return `Rp. ${Number(value || 0).toLocaleString('id-ID')}`;
+    return `Rp.${Number(value || 0).toLocaleString('id-ID')}`;
 };
 
-const formatRupiahCompact = (value) => {
-    const number = Number(value || 0);
-
-    if (number >= 1000000) {
-        return `Rp ${(number / 1000000).toFixed(number % 1000000 === 0 ? 0 : 1)}m`;
-    }
-
-    if (number >= 1000) {
-        return `Rp ${(number / 1000).toFixed(number % 1000 === 0 ? 0 : 1)}k`;
-    }
-
-    return `Rp ${number.toLocaleString('id-ID')}`;
-};
-
-const formatDisplayDate = (value) => {
-    if (!value) return new Date().toLocaleDateString('id-ID');
+const formatDateTimeValue = (value) => {
+    if (!value) return '';
     const date = new Date(value);
-    if (Number.isNaN(date.getTime())) return value;
-    return date.toLocaleDateString('id-ID');
+    if (Number.isNaN(date.getTime())) return '';
+    const pad = (n) => String(n).padStart(2, '0');
+    return `${date.getFullYear()}-${pad(date.getMonth() + 1)}-${pad(date.getDate())}T${pad(date.getHours())}:${pad(date.getMinutes())}`;
 };
 
-const formatVerifiedDate = (value) => {
+const formatScheduleText = (value) => {
     if (!value) return '-';
     const date = new Date(value);
     if (Number.isNaN(date.getTime())) return '-';
-
-    return date.toLocaleDateString('id-ID', {
-        day: 'numeric',
+    return date.toLocaleString('id-ID', {
+        day: '2-digit',
         month: 'short',
-        year: 'numeric'
-    });
+        year: 'numeric',
+        hour: '2-digit',
+        minute: '2-digit'
+    }) + ' WITA';
 };
 
-const TransactionPage = () => {
-    const [fromDate, setFromDate] = useState('');
-    const [toDate, setToDate] = useState('');
-    const [actualCash, setActualCash] = useState('');
-    const [cashierNotes, setCashierNotes] = useState('');
+const getStatusLabel = (status) => {
+    switch (status) {
+        case 'scheduled':
+            return 'Scheduled';
+        case 'to_be_scheduled':
+        default:
+            return 'To be scheduled';
+    }
+};
 
-    const params = useMemo(() => ({
-        fromDate,
-        toDate
-    }), [fromDate, toDate]);
+const getStatusBadgeClass = (status) => {
+    if (status === 'scheduled') {
+        return 'bg-[#EAF8EA] text-[#56B95A]';
+    }
 
-    const {
-        report,
-        loading,
-        closing,
-        error,
-        closeRegister
-    } = useDailyReport(params);
+    return 'bg-[#FFF1F1] text-[#FF4D4F]';
+};
 
-    useEffect(() => {
-        if (report?.registerClosure?.actualCash) {
-            setActualCash(String(report.registerClosure.actualCash));
-        } else {
-            setActualCash('');
+const initialDeliveryOrders = [
+    {
+        _id: '1',
+        receiptNumber: 'RCPT-20260405-0002',
+        itemName: 'Big Garuda Statue',
+        customerName: 'Yoga Kusuma',
+        deliveryFee: 1015000,
+        delivery: {
+            packageName: 'Big Garuda Statue',
+            recipientName: '',
+            destinationAddress: '',
+            courierPartner: '',
+            pickupDateTime: '',
+            packageWeight: '',
+            courierPrice: 882608.7,
+            storeProfit: 132391.3,
+            totalPrice: 1015000,
+            trackingNumber: '',
+            notes: '',
+            status: 'to_be_scheduled'
         }
-
-        setCashierNotes(report?.registerClosure?.cashierNotes || '');
-    }, [report?.registerClosure?.actualCash, report?.registerClosure?.cashierNotes]);
-
-    const paymentBreakdown = report?.paymentBreakdown || {
-        cash: 0,
-        qris: 0,
-        card: 0
-    };
-
-    const cashAmount = Number(paymentBreakdown.cash || 0);
-    const qrisAmount = Number(paymentBreakdown.qris || 0);
-    const cardAmount = Number(paymentBreakdown.card || 0);
-    const totalPaymentBreakdown = cashAmount + qrisAmount + cardAmount;
-
-    const chartStops = useMemo(() => {
-        if (!totalPaymentBreakdown) {
-            return {
-                cashEnd: 33,
-                qrisEnd: 66
-            };
+    },
+    {
+        _id: '2',
+        receiptNumber: 'RCPT-20260405-0003',
+        itemName: 'Barong Mask',
+        customerName: 'Yoga Kusuma',
+        deliveryFee: 1015000,
+        delivery: {
+            packageName: 'Barong Mask',
+            recipientName: 'Yoga Kusuma',
+            destinationAddress: 'Jl. Raya Ubud No. 18, Gianyar, Bali',
+            courierPartner: 'J&T Cargo',
+            pickupDateTime: '2026-04-24T10:00:00',
+            packageWeight: '8 kg',
+            courierPrice: 882608.7,
+            storeProfit: 132391.3,
+            totalPrice: 1015000,
+            trackingNumber: 'JT202604240001',
+            notes: 'Handle with care',
+            status: 'scheduled'
         }
+    }
+];
 
-        const cashEnd = (cashAmount / totalPaymentBreakdown) * 100;
-        const qrisEnd = cashEnd + (qrisAmount / totalPaymentBreakdown) * 100;
+const DeliveryPage = () => {
+    const { user, logout } = useAuth();
+    const navigate = useNavigate();
+    const userMenuRef = useRef(null);
 
-        return {
-            cashEnd,
-            qrisEnd
-        };
-    }, [cashAmount, qrisAmount, totalPaymentBreakdown]);
+    const [isUserMenuOpen, setIsUserMenuOpen] = useState(false);
+    const [tab, setTab] = useState('all');
+    const [search, setSearch] = useState('');
+    const [orders, setOrders] = useState(initialDeliveryOrders);
+    const [selectedOrderId, setSelectedOrderId] = useState(initialDeliveryOrders[0]?._id || null);
 
-    const cashierName = report?.cashier?.name || '-';
-    const cashierInitials = cashierName.slice(0, 2).toUpperCase();
-    const expectedDrawerCash = Number(report?.drawerCash?.expected || 0);
-    const isRegisterClosed = Boolean(report?.registerClosure?.isClosed);
+    const selectedOrder = useMemo(() => {
+        return orders.find((order) => order._id === selectedOrderId) || null;
+    }, [orders, selectedOrderId]);
 
-    const handleCloseRegister = async () => {
-        if (!actualCash.trim()) {
-            alert('Please input actual cash first');
-            return;
-        }
+    const [form, setForm] = useState({
+        recipientName: '',
+        destinationAddress: '',
+        courierPartner: '',
+        pickupDateTime: '',
+        packageWeight: '',
+        courierPrice: '',
+        trackingNumber: '',
+        notes: ''
+    });
 
-        const result = await closeRegister({
-            fromDate,
-            toDate,
-            actualCash: Number(actualCash),
-            cashierNotes
+    React.useEffect(() => {
+        if (!selectedOrder) return;
+
+        setForm({
+            recipientName: selectedOrder.delivery?.recipientName || selectedOrder.customerName || '',
+            destinationAddress: selectedOrder.delivery?.destinationAddress || '',
+            courierPartner: selectedOrder.delivery?.courierPartner || '',
+            pickupDateTime: formatDateTimeValue(selectedOrder.delivery?.pickupDateTime),
+            packageWeight: selectedOrder.delivery?.packageWeight || '',
+            courierPrice: selectedOrder.delivery?.courierPrice
+                ? String(Math.round(selectedOrder.delivery.courierPrice))
+                : '',
+            trackingNumber: selectedOrder.delivery?.trackingNumber || '',
+            notes: selectedOrder.delivery?.notes || ''
         });
+    }, [selectedOrder]);
 
-        if (!result.success) {
-            alert(result.error || 'Failed to close register');
+    const filteredOrders = useMemo(() => {
+        return orders.filter((order) => {
+            const status = order.delivery?.status || 'to_be_scheduled';
+
+            const matchesTab =
+                tab === 'all'
+                    ? true
+                    : tab === 'to_be_scheduled'
+                        ? status === 'to_be_scheduled'
+                        : status === 'scheduled';
+
+            const keyword = search.trim().toLowerCase();
+            const matchesSearch =
+                !keyword ||
+                order.itemName.toLowerCase().includes(keyword) ||
+                order.customerName.toLowerCase().includes(keyword) ||
+                order.receiptNumber.toLowerCase().includes(keyword);
+
+            return matchesTab && matchesSearch;
+        });
+    }, [orders, tab, search]);
+
+    const shippingRevenue = useMemo(() => {
+        return orders.reduce((sum, order) => sum + Number(order.delivery?.totalPrice || order.deliveryFee || 0), 0);
+    }, [orders]);
+
+    const shippingProfit = useMemo(() => {
+        return orders.reduce((sum, order) => sum + Number(order.delivery?.storeProfit || 0), 0);
+    }, [orders]);
+
+    const courierPriceNumber = Number(form.courierPrice || 0);
+    const storeProfit = courierPriceNumber * (STORE_PROFIT_PERCENT / 100);
+    const totalPrice = courierPriceNumber + storeProfit;
+
+    const handleLogout = () => {
+        logout();
+        navigate('/login');
+    };
+
+    const handleSelectOrder = (order) => {
+        setSelectedOrderId(order._id);
+    };
+
+    const handleChange = (e) => {
+        const { name, value } = e.target;
+
+        setForm((prev) => ({
+            ...prev,
+            [name]: name === 'courierPrice' ? value.replace(/[^\d]/g, '') : value
+        }));
+    };
+
+    const handleSetSchedule = () => {
+        if (!selectedOrder) return;
+
+        const recipientName = form.recipientName.trim();
+        const destinationAddress = form.destinationAddress.trim();
+        const courierPartner = form.courierPartner.trim();
+        const pickupDateTime = form.pickupDateTime;
+        const packageWeight = form.packageWeight.trim();
+        const trackingNumber = form.trackingNumber.trim();
+        const notes = form.notes.trim();
+
+        if (!recipientName) {
+            alert('Recipient name is required');
             return;
         }
 
-        alert('Register closed successfully');
-    };
+        if (!destinationAddress) {
+            alert('Destination address is required');
+            return;
+        }
 
-    const handleDownloadPdfReport = () => {
-        alert('Download PDF report clicked');
+        if (!courierPartner) {
+            alert('Courier partner is required');
+            return;
+        }
+
+        if (!pickupDateTime) {
+            alert('Pickup date and time is required');
+            return;
+        }
+
+        if (!packageWeight) {
+            alert('Package weight is required');
+            return;
+        }
+
+        if (!courierPriceNumber || courierPriceNumber < 0) {
+            alert('Courier price is required');
+            return;
+        }
+
+        setOrders((prev) =>
+            prev.map((order) => {
+                if (order._id !== selectedOrder._id) return order;
+
+                return {
+                    ...order,
+                    deliveryFee: totalPrice,
+                    delivery: {
+                        ...order.delivery,
+                        packageName: order.delivery?.packageName || order.itemName,
+                        recipientName,
+                        destinationAddress,
+                        courierPartner,
+                        pickupDateTime,
+                        packageWeight,
+                        courierPrice: courierPriceNumber,
+                        storeProfit,
+                        totalPrice,
+                        trackingNumber,
+                        notes,
+                        status: 'scheduled'
+                    }
+                };
+            })
+        );
+
+        alert('Delivery schedule saved in form');
     };
 
     return (
-        <div className="w-full px-1 pb-6">
-            <div className="flex flex-col gap-4 lg:flex-row lg:items-center lg:justify-between mb-6">
-                <h1 className="text-[24px] font-bold text-[#4F3529] leading-tight">
-                    Daily Cashier Transactions Report
-                </h1>
-
-                <div className="flex items-center gap-2 md:gap-3">
-                    <input
-                        type="date"
-                        value={fromDate}
-                        onChange={(e) => setFromDate(e.target.value)}
-                        className="h-[36px] w-[132px] rounded-[10px] border border-[#D8D8D8] bg-white px-4 text-center text-xs text-[#6F625C] outline-none focus:ring-2 focus:ring-[#6A4734]"
-                    />
-                    <input
-                        type="date"
-                        value={toDate}
-                        onChange={(e) => setToDate(e.target.value)}
-                        className="h-[36px] w-[132px] rounded-[10px] border border-[#D8D8D8] bg-white px-4 text-center text-xs text-[#6F625C] outline-none focus:ring-2 focus:ring-[#6A4734]"
-                    />
-                    <button
-                        type="button"
-                        className="w-10 h-10 bg-black rounded-full flex items-center justify-center text-white shrink-0"
-                        aria-label="User profile"
-                    >
-                        <User className="w-5 h-5" />
-                    </button>
-                </div>
-            </div>
-
-            {loading && (
-                <div className="mb-4 rounded-2xl bg-white border border-gray-200 px-4 py-3 text-gray-500">
-                    Loading daily report...
-                </div>
-            )}
-
-            {error && (
-                <div className="mb-4 rounded-2xl bg-red-50 border border-red-200 px-4 py-3 text-red-600">
-                    {error}
-                </div>
-            )}
-
-            <div className="grid grid-cols-1 lg:grid-cols-12 gap-4 mb-5">
-                <div className="lg:col-span-8 bg-[#6A4734] rounded-[20px] px-8 py-5 text-white flex items-center min-h-[98px]">
-                    <div>
-                        <p className="text-[10px] uppercase tracking-[0.9px] font-bold opacity-90 mb-2">
-                            Cashier On Duty
-                        </p>
-
-                        <div className="flex items-center gap-4">
-                            <div className="w-12 h-12 rounded-full bg-[#D9D9D9] text-[#77706B] flex items-center justify-center font-bold text-[18px]">
-                                {cashierInitials}
-                            </div>
-
-                            <div>
-                                <h2 className="text-[20px] font-bold leading-tight">
-                                    {cashierName}
-                                </h2>
-                                <p className="text-[10px] opacity-90 mt-1">
-                                    {report?.cashier?.shift || 'Morning Shift: (08:00 - 17:00)'}
-                                </p>
-                            </div>
-                        </div>
-                    </div>
-                </div>
-
-                <div
-                    className="lg:col-span-4 bg-white rounded-[20px] border border-[#D9D9D9] shadow-sm px-8 py-5 flex flex-col justify-center min-h-[98px]"
-                    style={{ borderTop: '4px solid #6A4734' }}
-                >
-                    <p className="text-[10px] uppercase tracking-[0.5px] font-bold text-[#6B5A52] mb-1">
-                        NET SALES ON {formatDisplayDate(toDate || fromDate)}
+        <div className="w-full">
+            <div className="flex items-start justify-between gap-6 mb-6">
+                <div>
+                    <h1 className="text-[24px] font-bold text-[#5A3B2D]">
+                        Delivery Management
+                    </h1>
+                    <p className="text-sm text-[#7C6B62] mt-1">
+                        Processing paid shipments with 15% service
                     </p>
-
-                    <h2 className="text-[22px] font-bold text-[#4F3529] leading-tight">
-                        {formatRupiah(report?.netSalesToday || 0)}
-                    </h2>
-
-                    <div className="flex items-center gap-2 mt-2 text-[10px] text-[#9D8E86]">
-                        <span className="px-2 py-1 rounded-md bg-[#FAFAFA] border border-[#EDEDED]">
-                            {report?.invoiceCount || 0} Invoices
-                        </span>
-                        <span className="px-2 py-1 rounded-md bg-[#FAFAFA] border border-[#EDEDED]">
-                            {report?.totalItemsSold || 0} Items
-                        </span>
-                    </div>
                 </div>
-            </div>
 
-            <section className="mb-8">
-                <h2 className="text-[18px] font-bold text-[#4F3529] mb-3">
-                    Financial & Reconciliation
-                </h2>
-
-                <div className="grid grid-cols-1 lg:grid-cols-3 gap-4">
-                    <div className="bg-white rounded-[32px] border border-[#D9D9D9] shadow-sm px-5 py-5 min-h-[170px] flex flex-col">
-                        <div className="flex items-center gap-3 mb-5">
-                            <div className="w-9 h-9 rounded-xl bg-[#F5F6F0] flex items-center justify-center text-[#14BA62]">
-                                <BadgeDollarSign className="w-4 h-4" />
-                            </div>
-                            <h3 className="font-bold text-[#4F3529] text-[13px]">Cash Flow</h3>
-                        </div>
-
-                        <div className="space-y-3 text-sm">
-                            <div className="flex items-center justify-between">
-                                <span className="text-[#9D8E86] text-[12px]">Starting Cash</span>
-                                <span className="font-bold text-[#4F3529] text-[12px]">
-                                    {formatRupiah(report?.cashFlow?.startingCash || 0)}
-                                </span>
-                            </div>
-
-                            <div className="flex items-center justify-between">
-                                <span className="text-[#9D8E86] text-[12px]">Cash Sales</span>
-                                <span className="font-bold text-[#4F3529] text-[12px]">
-                                    {formatRupiah(report?.cashFlow?.cashSales || 0)}
-                                </span>
-                            </div>
-                        </div>
-
-                        <div className="rounded-full" style={{ height: '5px', marginTop: '36px', backgroundColor: '#D6D2CF' }} />
-                    </div>
-
-                    <div className="bg-white rounded-[32px] border border-[#D9D9D9] shadow-sm px-5 py-5 min-h-[170px] flex flex-col">
-                        <div className="flex items-center gap-3 mb-4">
-                            <div className={`w-9 h-9 rounded-xl flex items-center justify-center ${isRegisterClosed ? 'bg-[#DDEBFF] text-[#4C99F8]' : 'bg-[#DDF9E7] text-[#14BA62]'}`}>
-                                <WalletCards className="w-4 h-4" />
-                            </div>
-                            <h3 className="font-bold text-[#4F3529] text-[13px]">Drawer Cash</h3>
-                        </div>
-
-                        <div className="flex items-start justify-between gap-3 mb-4">
-                            <p className="text-[8px] uppercase tracking-[0.6px] font-bold text-[#B0A29A] mt-1">
-                                {isRegisterClosed ? 'Reported Actual' : 'Expected'}
-                            </p>
-
-                            <h2 className="text-[18px] font-bold text-[#4F3529] leading-none">
-                                {formatRupiah(isRegisterClosed ? report?.registerClosure?.actualCash || 0 : expectedDrawerCash)}
-                            </h2>
-                        </div>
-
-                        {isRegisterClosed ? (
-                            <p className="text-[9px] italic text-[#9D8E86] min-h-[30px]">
-                                *Actual cash was verified by {report?.registerClosure?.verifiedBy || cashierName} on {formatVerifiedDate(report?.registerClosure?.closedAt)}
-                            </p>
-                        ) : (
-                            <input
-                                type="text"
-                                placeholder="Actual cash..."
-                                value={actualCash}
-                                onChange={(e) => setActualCash(e.target.value.replace(/[^\d]/g, ''))}
-                                className="h-[30px] rounded-xl bg-[#FAFAFA] border border-[#D9D9D9] px-4 text-[12px] text-[#4F3529] outline-none focus:ring-2 focus:ring-[#13C257]"
-                            />
-                        )}
-
-                        <div
-                            className="rounded-full"
-                            style={{
-                                height: '5px',
-                                marginTop: '16px',
-                                backgroundColor: isRegisterClosed ? '#4C99F8' : '#13C257'
-                            }}
-                        />
-                    </div>
-
-                    <div className="bg-white rounded-[32px] border border-[#D9D9D9] shadow-sm px-5 py-5 min-h-[170px] flex flex-col">
-                        <div className="flex items-center gap-3 mb-4">
-                            <div className="w-9 h-9 rounded-xl bg-[#FFE6C2] flex items-center justify-center text-[#579DE8]">
-                                <ChartNoAxesCombined className="w-4 h-4" />
-                            </div>
-                            <h3 className="font-bold text-[#4F3529] text-[13px]">
-                                {isRegisterClosed ? 'Daily Revenue' : 'Total Revenue'}
-                            </h3>
-                        </div>
-
-                        <p className="text-[10px] uppercase tracking-[0.6px] font-bold text-[#B0A29A] mb-2">
-                            {isRegisterClosed ? 'Total Omzet' : 'Gross Omzet'}
+                <div className="flex items-start gap-4">
+                    <div className="bg-[#F5F5F5] rounded-[28px] px-6 py-7 shadow-sm min-w-[210px]">
+                        <p className="text-[18px] font-semibold text-[#5A3B2D] mb-2">
+                            Shipping Revenue
                         </p>
-
-                        <h2 className="text-[24px] font-bold text-[#4F3529] leading-none">
-                            {formatRupiah(report?.totalRevenue || 0)}
+                        <h2 className="text-[24px] font-bold text-[#5A3B2D]">
+                            {formatRupiah(shippingRevenue)}
                         </h2>
-
-                        <div className="rounded-full" style={{ height: '5px', marginTop: '36px', backgroundColor: '#FF8A00' }} />
-                    </div>
-                </div>
-            </section>
-
-            <section>
-                <div className="grid grid-cols-1 xl:grid-cols-[1fr_415px] gap-5 items-stretch">
-                    <div>
-                        <h2 className="text-[16px] font-bold text-[#4F3529] mb-3">
-                            Inventory Highlights
-                        </h2>
-
-                        <div className="space-y-2">
-                            <div className="bg-white rounded-[14px] border border-[#D9D9D9] px-4 py-3 flex items-center justify-between min-h-[60px] shadow-sm">
-                                <div className="flex items-center gap-3">
-                                    <div className="w-9 h-9 rounded-xl bg-[#F8F8F8] border border-[#D9D9D9] flex items-center justify-center text-[#2F9EEB]">
-                                        <ShoppingBag className="w-4 h-4" />
-                                    </div>
-                                    <span className="font-bold text-[#4F3529] text-[12px]">
-                                        Total Items Sold
-                                    </span>
-                                </div>
-
-                                <span className="px-3 py-1 rounded-full bg-[#FFF1B8] text-[#8A6B00] text-[11px] font-bold">
-                                    {report?.totalItemsSold || 0} Pcs
-                                </span>
-                            </div>
-
-                            <div className="bg-white rounded-[14px] border border-[#D9D9D9] px-4 py-3 flex items-center justify-between min-h-[60px] shadow-sm">
-                                <div className="flex items-center gap-3">
-                                    <div className="w-9 h-9 rounded-xl bg-[#F8F8F8] border border-[#D9D9D9] flex items-center justify-center text-[#C57A2F]">
-                                        <Trophy className="w-4 h-4" />
-                                    </div>
-                                    <span className="font-bold text-[#4F3529] text-[12px]">
-                                        Top Selling Product
-                                    </span>
-                                </div>
-
-                                <span className="font-bold text-[#4F3529] text-[12px] text-right">
-                                    {report?.topSellingProduct || '-'}
-                                </span>
-                            </div>
-
-                            <div className="bg-white rounded-[14px] border border-[#D9D9D9] px-4 py-3 flex items-center justify-between min-h-[60px] shadow-sm">
-                                <div className="flex items-center gap-3">
-                                    <div className="w-9 h-9 rounded-xl bg-[#F8F8F8] border border-[#D9D9D9] flex items-center justify-center text-[#FF5167]">
-                                        <Flag className="w-4 h-4" />
-                                    </div>
-                                    <span className="font-bold text-[#4F3529] text-[12px]">
-                                        Guide Commissions
-                                    </span>
-                                </div>
-
-                                <span className="px-3 py-1 rounded-full bg-[#FFE1C4] text-[#E06F00] text-[11px] font-bold">
-                                    {formatRupiah(report?.guideCommission || 0)}
-                                </span>
-                            </div>
-
-                            <textarea
-                                value={cashierNotes}
-                                onChange={(e) => setCashierNotes(e.target.value)}
-                                placeholder="Cashier notes (e.g., missing coins, canceled invoices)..."
-                                disabled={isRegisterClosed}
-                                className="w-full rounded-[28px] border border-[#D9D9D9] bg-white px-6 py-5 min-h-[68px] outline-none focus:ring-2 focus:ring-[#6A4734] resize-y text-xs text-[#4F3529] shadow-sm disabled:bg-[#F5F5F5]"
-                            />
-                        </div>
                     </div>
 
-                    <div className="bg-[#6A4734] rounded-[28px] p-6 text-white flex flex-col min-h-[315px] shadow-[0_12px_18px_rgba(86,57,43,0.28)]">
-                        <h2 className="text-lg font-bold mb-1">
-                            Payment Breakdown
-                        </h2>
-
-                        <p className="uppercase tracking-[1px] font-bold" style={{ fontSize: '11px', opacity: 0.8, marginBottom: '24px' }}>
-                            Transaction Methods
+                    <div className="bg-[#6A4734] rounded-[28px] px-6 py-7 shadow-sm min-w-[210px]">
+                        <p className="text-[18px] font-semibold text-white mb-2">
+                            Shipping Profit
                         </p>
+                        <h2 className="text-[24px] font-bold text-white">
+                            {formatRupiah(shippingProfit)}
+                        </h2>
+                    </div>
 
-                        <div className="flex items-start gap-7">
-                            <div
-                                className="relative shrink-0 rounded-full flex items-center justify-center"
-                                style={{
-                                    width: '96px',
-                                    height: '96px',
-                                    marginRight: '24px',
-                                    background: `conic-gradient(#FF3CAE 0 ${chartStops.cashEnd}%, #2D9BFF ${chartStops.cashEnd}% ${chartStops.qrisEnd}%, #12D981 ${chartStops.qrisEnd}% 100%)`
-                                }}
-                            >
-                                <div className="w-[48px] h-[48px] rounded-full bg-[#56392B] flex flex-col items-center justify-center text-center px-1">
-                                    <span className="uppercase font-bold leading-none tracking-[1px]" style={{ fontSize: '9px', opacity: 0.8 }}>
-                                        Total
-                                    </span>
-                                    <span className="font-bold mt-1 leading-tight" style={{ fontSize: '14px' }}>
-                                        {formatRupiahCompact(totalPaymentBreakdown)}
-                                    </span>
-                                </div>
-                            </div>
+                    <div className="relative" ref={userMenuRef}>
+                        <button
+                            onClick={() => setIsUserMenuOpen((prev) => !prev)}
+                            className="w-10 h-10 bg-[#4E3629] rounded-full flex items-center justify-center text-white hover:opacity-90 transition-opacity focus:outline-none shadow-sm"
+                        >
+                            <User size={20} />
+                        </button>
 
-                            <div className="flex-1 space-y-4 text-sm pt-1">
-                                <div className="flex items-center justify-between gap-3">
-                                    <div className="flex items-center gap-2">
-                                        <span className="rounded-full" style={{ width: '10px', height: '10px', backgroundColor: '#FF3CAE' }} />
-                                        <span className="text-[11px] font-semibold">Cash</span>
-                                    </div>
-                                    <span className="text-[11px] font-bold">
-                                        {formatRupiahCompact(cashAmount)}
-                                    </span>
-                                </div>
-
-                                <div className="flex items-center justify-between gap-3">
-                                    <div className="flex items-center gap-2">
-                                        <span className="rounded-full" style={{ width: '10px', height: '10px', backgroundColor: '#2D9BFF' }} />
-                                        <span className="text-[11px] font-semibold">QRIS</span>
-                                    </div>
-                                    <span className="text-[11px] font-bold">
-                                        {formatRupiahCompact(qrisAmount)}
-                                    </span>
-                                </div>
-
-                                <div className="flex items-center justify-between gap-3">
-                                    <div className="flex items-center gap-2">
-                                        <span className="rounded-full" style={{ width: '10px', height: '10px', backgroundColor: '#12D981' }} />
-                                        <span className="text-[11px] font-semibold">Debit</span>
-                                    </div>
-                                    <span className="text-[11px] font-bold">
-                                        {formatRupiahCompact(cardAmount)}
-                                    </span>
-                                </div>
-                            </div>
-                        </div>
-
-                        {isRegisterClosed ? (
-                            <>
-                                <div className="mt-auto w-full h-[36px] rounded-xl bg-[#7B5947] text-white text-[12px] font-extrabold tracking-[1px] flex items-center justify-center">
-                                    REGISTER CLOSED
+                        {isUserMenuOpen && (
+                            <div className="absolute top-full right-0 mt-2 w-56 bg-white rounded-xl shadow-lg border border-gray-100 py-2 z-50">
+                                <div className="px-4 py-3 border-b border-gray-100">
+                                    <p className="text-sm font-bold text-gray-900 truncate">
+                                        {user?.username || 'User'}
+                                    </p>
+                                    <p className="text-xs text-gray-500 truncate">
+                                        {user?.email || 'user@example.com'}
+                                    </p>
+                                    <p className="text-[10px] uppercase tracking-wider font-semibold text-[#6A4734] mt-1">
+                                        {user?.role || 'Cashier'}
+                                    </p>
                                 </div>
 
                                 <button
-                                    type="button"
-                                    onClick={handleDownloadPdfReport}
-                                    className="mt-3 w-full rounded-xl bg-white font-extrabold text-[12px] tracking-[1px] hover:opacity-90 transition flex items-center justify-center gap-2"
-                                    style={{
-                                        height: '36px',
-                                        color: '#6A4734'
-                                    }}
+                                    onClick={handleLogout}
+                                    className="w-full text-left px-4 py-2 text-sm text-red-600 hover:bg-red-50 flex items-center gap-2 transition-colors cursor-pointer"
                                 >
-                                    <Download className="w-4 h-4" />
-                                    DOWNLOAD PDF REPORT
+                                    <LogOut size={16} />
+                                    Logout
                                 </button>
-                            </>
-                        ) : (
-                            <button
-                                type="button"
-                                onClick={handleCloseRegister}
-                                disabled={closing}
-                                className="mt-auto w-full rounded-xl bg-white font-extrabold text-[12px] tracking-[1px] hover:opacity-90 transition disabled:opacity-60"
-                                style={{
-                                    height: '36px',
-                                    color: '#6A4734'
-                                }}
-                            >
-                                {closing ? 'PROCESSING...' : 'SUBMIT & CLOSE REGISTER'}
-                            </button>
+                            </div>
                         )}
                     </div>
                 </div>
-            </section>
+            </div>
+
+            <div className="grid grid-cols-1 xl:grid-cols-[1.25fr_0.95fr] gap-6">
+                {/* LEFT */}
+                <section>
+                    <div className="flex items-center justify-between gap-4 mb-6">
+                        <div className="bg-[#F1F1F1] rounded-full p-1 flex items-center gap-1">
+                            <button
+                                type="button"
+                                onClick={() => setTab('all')}
+                                className={`px-8 py-3 rounded-full text-sm font-semibold transition ${
+                                    tab === 'all'
+                                        ? 'bg-white text-[#1F1F1F] shadow-sm'
+                                        : 'text-[#9A9A9A]'
+                                }`}
+                            >
+                                ALL DATA
+                            </button>
+
+                            <button
+                                type="button"
+                                onClick={() => setTab('to_be_scheduled')}
+                                className={`px-8 py-3 rounded-full text-sm font-semibold transition ${
+                                    tab === 'to_be_scheduled'
+                                        ? 'bg-white text-[#1F1F1F] shadow-sm'
+                                        : 'text-[#9A9A9A]'
+                                }`}
+                            >
+                                TO BE SCHEDULED
+                            </button>
+
+                            <button
+                                type="button"
+                                onClick={() => setTab('scheduled')}
+                                className={`px-8 py-3 rounded-full text-sm font-semibold transition ${
+                                    tab === 'scheduled'
+                                        ? 'bg-white text-[#1F1F1F] shadow-sm'
+                                        : 'text-[#9A9A9A]'
+                                }`}
+                            >
+                                SCHEDULED
+                            </button>
+                        </div>
+
+                        <div className="relative w-full max-w-[280px]">
+                            <input
+                                type="text"
+                                placeholder="Search receipt or product"
+                                value={search}
+                                onChange={(e) => setSearch(e.target.value)}
+                                className="w-full rounded-xl border border-gray-300 px-4 py-3 pr-10 outline-none focus:ring-2 focus:ring-[#6A4734]"
+                            />
+                            <Search className="w-4 h-4 text-gray-400 absolute right-3 top-1/2 -translate-y-1/2" />
+                        </div>
+                    </div>
+
+                    <div className="space-y-4">
+                        {filteredOrders.map((order) => {
+                            const status = order.delivery?.status || 'to_be_scheduled';
+                            const isActive = selectedOrderId === order._id;
+
+                            return (
+                                <button
+                                    key={order._id}
+                                    type="button"
+                                    onClick={() => handleSelectOrder(order)}
+                                    className={`w-full text-left rounded-[34px] border bg-white shadow-sm transition overflow-hidden ${
+                                        isActive
+                                            ? 'border-[#D4C7BE] ring-2 ring-[#6A4734]/20'
+                                            : 'border-gray-200'
+                                    }`}
+                                >
+                                    <div className="grid grid-cols-[10px_1fr]">
+                                        <div className="bg-[#6A4734]" />
+
+                                        <div className="p-6">
+                                            <div className="flex items-start justify-between gap-4">
+                                                <div>
+                                                    <p className="text-xs text-[#B0A29A] font-semibold">
+                                                        Receipt No #{order.receiptNumber}
+                                                    </p>
+                                                    <h3 className="text-[18px] font-bold text-[#5A3B2D] mt-1">
+                                                        {order.itemName}
+                                                    </h3>
+                                                    <p className="text-sm text-[#A08F85] mt-1">
+                                                        {order.customerName}
+                                                    </p>
+                                                </div>
+
+                                                <div className="text-right">
+                                                    <div className={`inline-flex px-3 py-1 rounded-full text-xs font-bold ${getStatusBadgeClass(status)}`}>
+                                                        {getStatusLabel(status)}
+                                                    </div>
+                                                    <h4 className="text-[18px] font-bold text-[#5A3B2D] mt-3">
+                                                        {formatRupiah(order.delivery?.totalPrice || order.deliveryFee || 0)}
+                                                    </h4>
+                                                    <p className="text-sm text-[#A08F85]">
+                                                        Paid in POS
+                                                    </p>
+                                                </div>
+                                            </div>
+
+                                            {status === 'scheduled' && (
+                                                <div className="mt-5 rounded-[22px] border border-dashed border-[#D8D8D8] px-5 py-4 grid grid-cols-2 gap-4">
+                                                    <div className="flex items-center gap-3">
+                                                        <Truck className="w-4 h-4 text-[#B59A8A]" />
+                                                        <div>
+                                                            <p className="text-[10px] tracking-[2px] font-bold text-[#B0A29A] uppercase">
+                                                                Courier
+                                                            </p>
+                                                            <p className="text-sm font-semibold text-[#5A3B2D]">
+                                                                {order.delivery?.courierPartner || '-'}
+                                                            </p>
+                                                        </div>
+                                                    </div>
+
+                                                    <div className="flex items-center gap-3">
+                                                        <CalendarClock className="w-4 h-4 text-[#B59A8A]" />
+                                                        <div>
+                                                            <p className="text-[10px] tracking-[2px] font-bold text-[#B0A29A] uppercase">
+                                                                Estimated Arrival
+                                                            </p>
+                                                            <p className="text-sm font-semibold text-[#5A3B2D]">
+                                                                {formatScheduleText(order.delivery?.pickupDateTime)}
+                                                            </p>
+                                                        </div>
+                                                    </div>
+                                                </div>
+                                            )}
+                                        </div>
+                                    </div>
+                                </button>
+                            );
+                        })}
+
+                        {filteredOrders.length === 0 && (
+                            <div className="rounded-3xl bg-[#F8F8F8] border border-gray-200 p-8 text-center text-gray-500">
+                                No delivery data found
+                            </div>
+                        )}
+                    </div>
+                </section>
+
+                {/* RIGHT */}
+                <aside className="bg-[#F5F5F5] rounded-[28px] p-6 shadow-sm h-fit">
+                    <h2 className="text-[18px] font-bold text-[#5A3B2D] mb-5">
+                        Package Information
+                    </h2>
+
+                    {selectedOrder ? (
+                        <div className="space-y-4">
+                            <div>
+                                <label className="block text-sm text-[#7D6E66] mb-2">
+                                    Recipient Name
+                                </label>
+                                <input
+                                    type="text"
+                                    name="recipientName"
+                                    value={form.recipientName}
+                                    onChange={handleChange}
+                                    className="w-full h-[46px] rounded-xl border border-gray-200 bg-white shadow-sm px-4 outline-none focus:ring-2 focus:ring-[#6A4734]"
+                                />
+                            </div>
+
+                            <div>
+                                <label className="block text-sm text-[#7D6E66] mb-2">
+                                    Destination Address
+                                </label>
+                                <textarea
+                                    name="destinationAddress"
+                                    value={form.destinationAddress}
+                                    onChange={handleChange}
+                                    rows={3}
+                                    className="w-full rounded-xl border border-gray-200 bg-white shadow-sm px-4 py-3 outline-none focus:ring-2 focus:ring-[#6A4734] resize-none"
+                                />
+                            </div>
+
+                            <div>
+                                <label className="block text-sm text-[#7D6E66] mb-2">
+                                    Select Courier Partner
+                                </label>
+                                <input
+                                    type="text"
+                                    name="courierPartner"
+                                    value={form.courierPartner}
+                                    onChange={handleChange}
+                                    placeholder="Example: J&T Cargo"
+                                    className="w-full h-[46px] rounded-xl border border-gray-200 bg-white shadow-sm px-4 outline-none focus:ring-2 focus:ring-[#6A4734]"
+                                />
+                            </div>
+
+                            <div>
+                                <label className="block text-sm text-[#7D6E66] mb-2">
+                                    Pickup date and Time
+                                </label>
+                                <input
+                                    type="datetime-local"
+                                    name="pickupDateTime"
+                                    value={form.pickupDateTime}
+                                    onChange={handleChange}
+                                    className="w-full h-[46px] rounded-xl border border-gray-200 bg-white shadow-sm px-4 outline-none focus:ring-2 focus:ring-[#6A4734]"
+                                />
+                            </div>
+
+                            <div>
+                                <label className="block text-sm text-[#7D6E66] mb-2">
+                                    Package Weight
+                                </label>
+                                <input
+                                    type="text"
+                                    name="packageWeight"
+                                    value={form.packageWeight}
+                                    onChange={handleChange}
+                                    placeholder="Example: 8 kg"
+                                    className="w-full h-[46px] rounded-xl border border-gray-200 bg-white shadow-sm px-4 outline-none focus:ring-2 focus:ring-[#6A4734]"
+                                />
+                            </div>
+
+                            <div className="grid grid-cols-2 gap-4">
+                                <div>
+                                    <label className="block text-sm text-[#7D6E66] mb-2">
+                                        Courier Price
+                                    </label>
+                                    <input
+                                        type="text"
+                                        name="courierPrice"
+                                        value={form.courierPrice}
+                                        onChange={handleChange}
+                                        className="w-full h-[46px] rounded-xl border border-gray-200 bg-white shadow-sm px-4 outline-none focus:ring-2 focus:ring-[#6A4734]"
+                                    />
+                                </div>
+
+                                <div>
+                                    <label className="block text-sm text-[#7D6E66] mb-2">
+                                        Store Profit ({STORE_PROFIT_PERCENT}%)
+                                    </label>
+                                    <input
+                                        type="text"
+                                        value={formatRupiah(storeProfit)}
+                                        readOnly
+                                        className="w-full h-[46px] rounded-xl border border-gray-200 bg-[#FAFAFA] shadow-sm px-4 text-gray-600 outline-none"
+                                    />
+                                </div>
+                            </div>
+
+                            <div>
+                                <label className="block text-sm text-[#7D6E66] mb-2">
+                                    Tracking Number / Nomor Resi
+                                </label>
+                                <input
+                                    type="text"
+                                    name="trackingNumber"
+                                    value={form.trackingNumber}
+                                    onChange={handleChange}
+                                    placeholder="Input nomor resi jika sudah ada"
+                                    className="w-full h-[46px] rounded-xl border border-gray-200 bg-white shadow-sm px-4 outline-none focus:ring-2 focus:ring-[#6A4734]"
+                                />
+                            </div>
+
+                            <div>
+                                <label className="block text-sm text-[#7D6E66] mb-2">
+                                    Notes
+                                </label>
+                                <textarea
+                                    name="notes"
+                                    value={form.notes}
+                                    onChange={handleChange}
+                                    rows={3}
+                                    placeholder="Additional notes"
+                                    className="w-full rounded-xl border border-gray-200 bg-white shadow-sm px-4 py-3 outline-none focus:ring-2 focus:ring-[#6A4734] resize-none"
+                                />
+                            </div>
+
+                            <div>
+                                <label className="block text-sm text-[#7D6E66] mb-2">
+                                    Total Price
+                                </label>
+                                <input
+                                    type="text"
+                                    value={formatRupiah(totalPrice)}
+                                    readOnly
+                                    className="w-full h-[46px] rounded-xl border border-gray-200 bg-[#FAFAFA] shadow-sm px-4 text-gray-600 outline-none"
+                                />
+                            </div>
+
+                            <button
+                                type="button"
+                                onClick={handleSetSchedule}
+                                className="w-full h-[48px] rounded-xl bg-[#6A4734] text-white font-semibold hover:opacity-90 transition"
+                            >
+                                Set Schedule
+                            </button>
+                        </div>
+                    ) : (
+                        <div className="text-gray-500 text-sm">
+                            Select delivery card first
+                        </div>
+                    )}
+                </aside>
+            </div>
         </div>
     );
 };
 
-export default TransactionPage;
+export default DeliveryPage;

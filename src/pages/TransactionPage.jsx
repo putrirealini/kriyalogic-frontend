@@ -1,4 +1,4 @@
-import React, { useEffect, useMemo, useState } from 'react';
+import React, { useEffect, useMemo, useState, userMenuRef } from 'react';
 import {
     BadgeDollarSign,
     ChartNoAxesCombined,

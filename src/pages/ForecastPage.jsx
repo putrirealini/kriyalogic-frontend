@@ -29,26 +29,23 @@ const months = [
 const currentDate = new Date();
 const currentMonth = currentDate.getMonth() + 1;
 const currentYear = currentDate.getFullYear();
+const latestForecastDate = new Date(currentYear, currentMonth, 1);
+const latestForecastMonth = latestForecastDate.getMonth() + 1;
+const latestForecastYear = latestForecastDate.getFullYear();
 
 const formatNumber = (value) => Number(value || 0).toLocaleString('id-ID');
 
 const ForecastPage = () => {
   const [forecastData, setForecastData] = useState([]);
-  const [selectedMonth, setSelectedMonth] = useState(currentMonth);
-  const [selectedYear, setSelectedYear] = useState(currentYear);
+  const [selectedMonth, setSelectedMonth] = useState(latestForecastMonth);
+  const [selectedYear, setSelectedYear] = useState(latestForecastYear);
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState(null);
 
   const yearOptions = useMemo(
-    () => Array.from({ length: 6 }, (_, index) => currentYear - index),
+    () => Array.from({ length: 6 }, (_, index) => latestForecastYear - index),
     []
   );
-
-  useEffect(() => {
-    if (selectedYear === currentYear && selectedMonth > currentMonth) {
-      setSelectedMonth(currentMonth);
-    }
-  }, [selectedMonth, selectedYear]);
 
   useEffect(() => {
     const controller = new AbortController();
@@ -135,7 +132,7 @@ const ForecastPage = () => {
               {selectedMonthLabel} {selectedYear}
             </h2>
             <p className="mt-2 max-w-2xl text-sm text-[#6B5142]">
-              Forecast data is loaded globally from all products. Future months are disabled because sales data is not available yet.
+              Forecast data is loaded globally from all products. Choose any available month and year to view the forecast period.
             </p>
           </div>
 
@@ -154,7 +151,6 @@ const ForecastPage = () => {
                   <option
                     key={month.value}
                     value={month.value}
-                    disabled={selectedYear === currentYear && month.value > currentMonth}
                   >
                     {month.label}
                   </option>

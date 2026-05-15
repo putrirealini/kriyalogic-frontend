@@ -248,13 +248,13 @@ const POS = () => {
                                 <button
                                     key={category.id}
                                     onClick={() => setSelectedCategory(category.id)}
-                                    className={`w-[134px] h-[142px] rounded-2xl shadow-md border px-4 py-3 text-left transition ${
+                                    className={`w-[134px] h-[142px] shrink-0 rounded-2xl shadow-md border px-4 py-3 text-left transition flex flex-col ${
                                         isActive
                                             ? 'bg-[#6A4734] text-white border-[#6A4734]'
                                             : 'bg-[#F8F8F8] text-[#2F241F] border-gray-200'
                                     }`}
                                 >
-                                    <div className={`mb-4 text-2xl ${
+                                    <div className={`h-[52px] mb-3 text-2xl flex items-start ${
                                         isActive ? 'text-white/80' : 'text-gray-400'
                                     }`}>
                                         {category.logo ?  (
@@ -278,11 +278,14 @@ const POS = () => {
                                             </div>
                                         )}
                                     </div>
-                                    <div className="font-semibold text-[12px] leading-5 mt-4">
+                                    <div
+                                        className="font-semibold text-[12px] leading-[15px] min-h-[30px] line-clamp-2 break-words"
+                                        title={category.name}
+                                    >
                                         {category.name}
                                     </div>
                                     <div
-                                        className={`text-xs ${
+                                        className={`mt-auto text-xs leading-4 whitespace-nowrap ${
                                             isActive ? 'text-white/80' : 'text-gray-500'
                                         }`}
                                     >

@@ -1,4 +1,5 @@
 import React, { useEffect, useMemo, useState, userMenuRef } from 'react';
+import toast from 'react-hot-toast';
 import {
     BadgeDollarSign,
     ChartNoAxesCombined,
@@ -119,7 +120,7 @@ const TransactionPage = () => {
 
     const handleCloseRegister = async () => {
         if (!actualCash.trim()) {
-            alert('Please input actual cash first');
+            toast.error('Please input actual cash first');
             return;
         }
 
@@ -130,15 +131,15 @@ const TransactionPage = () => {
         });
 
         if (!result.success) {
-            alert(result.error || 'Failed to close register');
+            toast.error(result.error || 'Failed to close register');
             return;
         }
 
-        alert('Register closed successfully');
+        toast.success('Register closed successfully');
     };
 
     const handleDownloadPdfReport = () => {
-        alert('Download PDF report clicked');
+        toast('Download PDF report clicked');
     };
 
     return (

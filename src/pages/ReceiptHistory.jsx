@@ -1,8 +1,10 @@
 import React, { useEffect, useMemo, useRef, useState } from 'react';
+import toast from 'react-hot-toast';
 import { ArrowLeft, Search, LogOut, User, ClipboardList } from 'lucide-react';
 import { useNavigate } from 'react-router-dom';
 import useReceiptHistories from '../hooks/useReceiptHistories';
 import useReceiptHistoryDetail from '../hooks/useReceiptHistoryDetail';
+import useReceiptStoreSettings from '../hooks/useReceiptStoreSettings';
 import { useAuth } from '../context/AuthContext';
 import logoImage from '../../public/logo.png';
 import html2canvas from 'html2canvas-pro';
@@ -47,11 +49,19 @@ const ReceiptHistory = () => {
         limit: 10
     });
 
+    const effectiveSelectedReceiptId = selectedReceiptId || receiptHistories[0]?._id || '';
+
     const {
         receiptDetail,
         loading: detailLoading,
         error: detailError
-    } = useReceiptHistoryDetail(selectedReceiptId);
+    } = useReceiptHistoryDetail(effectiveSelectedReceiptId);
+
+    const {
+        receiptSettings,
+        loading: settingsLoading,
+        error: settingsError
+    } = useReceiptStoreSettings();
 
     useEffect(() => {
         const handleClickOutside = (event) => {
@@ -66,17 +76,23 @@ const ReceiptHistory = () => {
         };
     }, []);
 
-    useEffect(() => {
-        if (!selectedReceiptId && receiptHistories.length > 0) {
-            setSelectedReceiptId(receiptHistories[0]._id);
-        }
-    }, [receiptHistories, selectedReceiptId]);
-
     const previewDetail = useMemo(() => {
         if (receiptDetail) return receiptDetail;
         if (receiptHistories.length > 0) return receiptHistories[0];
         return null;
     }, [receiptDetail, receiptHistories]);
+
+    const receiptBrand = useMemo(() => ({
+        shopNameOnReceipt: receiptSettings?.shopNameOnReceipt || 'KriyaLogic',
+        slogan: receiptSettings?.slogan || 'Empowering Craftsmanship with Digital Logic',
+        storeAddress: receiptSettings?.storeAddress || 'Jl. Ir. Sutami, Kemenuh, Kec. Sukawati, Kabupaten Gianyar, Bali',
+        footerGreeting: receiptSettings?.footerGreeting || 'Have a Nice Day!',
+        returnPolicyText: receiptSettings?.returnPolicyText || 'No return or exchange accepted without receipt',
+        whatsappNumber: receiptSettings?.whatsappNumber || '',
+        instagramUsername: receiptSettings?.instagramUsername || '',
+        isTaxed: Boolean(receiptSettings?.isTaxed),
+        logo: receiptSettings?.logo || logoImage
+    }), [receiptSettings]);
 
     const handleSearch = (e) => {
         e.preventDefault();
@@ -220,7 +236,7 @@ const ReceiptHistory = () => {
                             </div>
                         ) : receiptHistories.length > 0 ? (
                             receiptHistories.map((item) => {
-                                const isActive = selectedReceiptId === item._id;
+                                const isActive = effectiveSelectedReceiptId === item._id;
 
                                 return (
                                     <button
@@ -310,7 +326,13 @@ const ReceiptHistory = () => {
                         </div>
                     )}
 
-                    {detailLoading && !previewDetail ? (
+                    {settingsError && (
+                        <div className="mb-4 rounded-xl border border-red-200 bg-red-50 px-4 py-3 text-sm text-red-600">
+                            {settingsError}
+                        </div>
+                    )}
+
+                    {(detailLoading && !previewDetail) || settingsLoading ? (
                         <div className="rounded-3xl bg-white border border-gray-200 p-8 text-gray-500">
                             Loading receipt detail...
                         </div>
@@ -328,22 +350,22 @@ const ReceiptHistory = () => {
                                 <div className="text-center border-b border-dashed border-gray-300 pb-3 mb-3">
                                     <div className="w-16 h-16 mx-auto mb-2 flex items-center justify-center">
                                         <img
-                                            src={logoImage}
-                                            alt="KriyaLogic Logo"
+                                            src={receiptBrand.logo}
+                                            alt={`${receiptBrand.shopNameOnReceipt} Logo`}
                                             className="max-w-full max-h-full object-contain"
                                         />
                                     </div>
 
                                     <h2 className="text-[18px] font-bold text-[#5A3B2D]">
-                                        KriyaLogic
+                                        {receiptBrand.shopNameOnReceipt}
                                     </h2>
 
                                     <div className="text-[#6B4C3B] text-[10px] mt-1">
-                                        Empowering Craftsmanship with Digital Logic
+                                        {receiptBrand.slogan}
                                     </div>
 
                                     <p className="text-[#6B4C3B] text-[10px] mt-2">
-                                        Jl. Ir. Sutami, Kemenuh, Kec. Sukawati, Kabupaten Gianyar, Bali
+                                        {receiptBrand.storeAddress}
                                     </p>
                                 </div>
 
@@ -429,6 +451,11 @@ const ReceiptHistory = () => {
                                         </div>
 
                                         <div className="flex justify-between gap-4">
+                                            <span>Tax</span>
+                                            <span>{receiptBrand.isTaxed ? 'Included' : 'Not taxed'}</span>
+                                        </div>
+
+                                        <div className="flex justify-between gap-4">
                                             <span>Tour Guide commission</span>
                                             <span>
                                                 {formatRupiah(previewDetail.guideCommissionAmount)}
@@ -440,23 +467,27 @@ const ReceiptHistory = () => {
                                 {/* Footer */}
                                 <div className="text-center border-t border-dashed border-gray-300 pt-3 mt-3">
                                     <h3 className="text-[16px] font-bold text-[#5A3B2D]">
-                                        Have a Nice Day!
+                                        {receiptBrand.footerGreeting}
                                     </h3>
 
                                     <p className="text-[#6B4C3B] mt-1 text-[10px]">
-                                        No return or exchange accepted without receipt
+                                        {receiptBrand.returnPolicyText}
                                     </p>
 
                                     <div className="mt-4">
                                         <h4 className="text-[11px] font-bold text-[#5A3B2D]">
                                             Get in touch
                                         </h4>
-                                        <p className="text-[10px] mt-1 text-[#6B4C3B]">
-                                            @wahanagiri
-                                        </p>
-                                        <p className="text-[10px] mt-1 text-[#6B4C3B]">
-                                            +62001234567
-                                        </p>
+                                        {receiptBrand.instagramUsername && (
+                                            <p className="text-[10px] mt-1 text-[#6B4C3B]">
+                                                @{receiptBrand.instagramUsername}
+                                            </p>
+                                        )}
+                                        {receiptBrand.whatsappNumber && (
+                                            <p className="text-[10px] mt-1 text-[#6B4C3B]">
+                                                +{receiptBrand.whatsappNumber}
+                                            </p>
+                                        )}
                                     </div>
                                 </div>
                             </div>

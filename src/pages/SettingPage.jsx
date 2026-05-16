@@ -1,4 +1,5 @@
 import React, { useEffect, useRef, useState } from 'react';
+import toast from 'react-hot-toast';
 import { User } from 'lucide-react';
 import useStoreSettings from '../hooks/useStoreSettings';
 
@@ -115,9 +116,9 @@ const SettingPage = () => {
         const result = await updateStoreSettings(payload);
 
         if (result.success) {
-            alert('Store settings saved successfully');
+            toast.success('Store settings saved successfully');
         } else {
-            alert(result.error || 'Failed to save store settings');
+            toast.error(result.error || 'Failed to save store settings');
         }
     };
 

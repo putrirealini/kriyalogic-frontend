@@ -1,4 +1,5 @@
 import React, { useEffect, useMemo, useRef, useState } from 'react';
+import toast from 'react-hot-toast';
 import useCreateParentProduct from '../hooks/useCreateParentProduct';
 import useCategories from '../hooks/useCategories';
 import { ArrowLeft } from 'lucide-react';
@@ -242,17 +243,17 @@ const InventoryAdd = () => {
             const result = await createParentProduct(payload);
 
             if (result.success) {
-                alert('Parent product created successfully');
+                toast.success('Parent product created successfully');
                 resetForm();
 
                 if (typeof refetchCategories === 'function') {
                     refetchCategories();
                 }
             } else {
-                alert(result.error || 'Failed to create parent product');
+                toast.error(result.error || 'Failed to create parent product');
             }
-        } catch (err) {
-            alert('Failed to process logo');
+        } catch {
+            toast.error('Failed to process logo');
         }
     };
 

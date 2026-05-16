@@ -4,7 +4,6 @@ import {
     User,
     ClipboardList,
     Trash2,
-    Grid2x2,
     ChevronDown,
     LogOut,
     Wallet,
@@ -16,12 +15,17 @@ import { useNavigate } from 'react-router-dom';
 import useCategories from '../hooks/useCategories';
 import useProducts from '../hooks/useProducts';
 import useGuides from '../hooks/useTourGuides';
+import useDetailParentProduct from '../hooks/useDetailParentProduct';
 import allIcon from '../assets/all_icon.svg';
 import defaultImage from '../../public/default_image.png';
+
+const ITEMS_PER_PAGE = 9;
 
 const formatRupiah = (value) => {
     return `Rp. ${Number(value || 0).toLocaleString('id-ID')}`;
 };
+
+const normalizeText = (value) => String(value || '').trim().toLowerCase();
 
 const POS = () => {
     const navigate = useNavigate();
@@ -55,6 +59,13 @@ const POS = () => {
     const [selectedCategory, setSelectedCategory] = useState('all');
     const [selectedItems, setSelectedItems] = useState([]);
     const [selectedGuideId, setSelectedGuideId] = useState('');
+    const [currentPage, setCurrentPage] = useState(1);
+
+    const {
+        parentProductDetail,
+        loading: detailLoading,
+        error: detailError
+    } = useDetailParentProduct(selectedCategory !== 'all' ? selectedCategory : null);
 
     useEffect(() => {
         const handleClickOutside = (event) => {
@@ -73,20 +84,33 @@ const POS = () => {
         };
     }, []);
 
+    useEffect(() => {
+        setCurrentPage(1);
+    }, [selectedCategory, search]);
+
     const normalizedCategories = useMemo(() => {
         const mapped = Array.isArray(categories)
             ? categories.map((category) => ({
-                    id: category?._id,
-                    name: category?.name || '-',
-                    logo: category?.logo || '',
-                    total: category?.productCount ?? 0
-                }))
+                id: category?._id || category?.id || '',
+                name: category?.name || category?.categoryName || category?.productName || '-',
+                normalizedName: normalizeText(
+                    category?.name || category?.categoryName || category?.productName
+                ),
+                logo: category?.logo || category?.coverImage || '',
+                total: Number(
+                    category?.productCount ??
+                    category?.availableCount ??
+                    category?.childItemCount ??
+                    0
+                ) || 0
+            }))
             : [];
 
         return [
             {
                 id: 'all',
                 name: 'All',
+                normalizedName: 'all',
                 total: mapped.reduce((acc, item) => acc + Number(item.total || 0), 0),
                 logo: allIcon
             },
@@ -95,37 +119,85 @@ const POS = () => {
     }, [categories]);
 
     const normalizedProducts = useMemo(() => {
+        if (selectedCategory !== 'all') {
+            const childItems =
+                parentProductDetail?.childItems ||
+                parentProductDetail?.items ||
+                parentProductDetail?.productItems ||
+                parentProductDetail?.children ||
+                [];
+
+            return Array.isArray(childItems)
+                ? childItems
+                    .filter((item) => normalizeText(item?.status || '') === 'available')
+                    .map((item) => ({
+                        id: item?._id || item?.id || '',
+                        name:
+                            item?.itemName ||
+                            item?.productName ||
+                            parentProductDetail?.productName ||
+                            '-',
+                        price: Number(item?.sellingPrice ?? 0) || 0,
+                        image: item?.productPhoto || '',
+                        raw: item
+                    }))
+                : [];
+        }
+
         return Array.isArray(products)
-            ? products.map((product) => ({
-                    id: product?._id,
-                    masterProductId: product?.masterProductId?._id,
-                    name: product?.itemName || '-',
+            ? products
+                .filter((product) => {
+                    const status = normalizeText(
+                        product?.status ||
+                        product?.raw?.status ||
+                        product?.productItem?.status ||
+                        ''
+                    );
+
+                    return status === 'available';
+                })
+                .map((product) => ({
+                    id: product?._id || product?.id || '',
+                    name:
+                        product?.itemName ||
+                        product?.productName ||
+                        product?.name ||
+                        '-',
                     price: Number(product?.sellingPrice ?? 0) || 0,
-                    image: product?.productPhoto || '',
+                    image: product?.productPhoto || product?.image || '',
                     raw: product
                 }))
             : [];
-    }, [products]);
+    }, [selectedCategory, parentProductDetail, products]);
 
     const normalizedGuides = useMemo(() => {
         return Array.isArray(guides)
             ? guides.map((guide) => ({
-                    id: guide?._id || guide?.id,
-                    name: guide?.guideName || '-',
-                    commissionRate: Number(guide?.commissionRate || 0)
-                }))
+                id: guide?._id || guide?.id,
+                name: guide?.guideName || '-',
+                commissionRate: Number(guide?.commissionRate || 0)
+            }))
             : [];
     }, [guides]);
 
     const filteredProducts = useMemo(() => {
-        return normalizedProducts.filter((product) => {
-            const matchesCategory = selectedCategory === 'all' || product.masterProductId === selectedCategory;
-            const keyword = search.trim().toLowerCase();
-            const matchesSearch = !keyword || product.name.toLowerCase().includes(keyword);
+        const keyword = search.trim().toLowerCase();
 
-            return matchesCategory && matchesSearch;
+        return normalizedProducts.filter((product) => {
+            const matchesSearch =
+                !keyword || String(product.name || '').toLowerCase().includes(keyword);
+
+            return matchesSearch;
         });
-    }, [normalizedProducts, search, selectedCategory]);
+    }, [normalizedProducts, search]);
+
+    const totalPages = Math.ceil(filteredProducts.length / ITEMS_PER_PAGE);
+
+    const paginatedProducts = useMemo(() => {
+        const startIndex = (currentPage - 1) * ITEMS_PER_PAGE;
+        const endIndex = startIndex + ITEMS_PER_PAGE;
+        return filteredProducts.slice(startIndex, endIndex);
+    }, [filteredProducts, currentPage]);
 
     const selectedGuide = useMemo(() => {
         return normalizedGuides.find((guide) => guide.id === selectedGuideId) || null;
@@ -210,9 +282,15 @@ const POS = () => {
         }
     ];
 
+    const isProductLoading = selectedCategory === 'all' ? productsLoading : detailLoading;
+    const productError = selectedCategory === 'all' ? productsError : detailError;
+    const productTitle =
+        selectedCategory === 'all'
+            ? 'All Product'
+            : parentProductDetail?.productName || 'Product Items';
+
     return (
         <div className="flex-1 grid grid-cols-[1fr_420px] min-h-screen">
-            {/* CENTER SECTION */}
             <section className="px-4 py-10 overflow-y-auto">
                 <div className="flex items-center justify-between mb-10 gap-6">
                     <h2 className="text-2xl font-bold text-[#5A3B2D]">
@@ -257,7 +335,7 @@ const POS = () => {
                                     <div className={`h-[52px] mb-3 text-2xl flex items-start ${
                                         isActive ? 'text-white/80' : 'text-gray-400'
                                     }`}>
-                                        {category.logo ?  (
+                                        {category.logo ? (
                                             <img
                                                 src={category.logo}
                                                 alt={category.name}
@@ -266,11 +344,11 @@ const POS = () => {
                                                 }`}
                                                 style={{
                                                     filter: isActive
-                                                    ? 'brightness(0) saturate(100%) invert(100%)'
-                                                    : 'brightness(0) saturate(100%) invert(20%) sepia(19%) saturate(1160%) hue-rotate(338deg) brightness(95%) contrast(90%)'
+                                                        ? 'brightness(0) saturate(100%) invert(100%)'
+                                                        : 'brightness(0) saturate(100%) invert(20%) sepia(19%) saturate(1160%) hue-rotate(338deg) brightness(95%) contrast(90%)'
                                                 }}
-                                                width={category.name == 'All' ? 32 : 44}
-                                                height={category.name == 'All' ? 30 : 52}
+                                                width={category.name === 'All' ? 32 : 44}
+                                                height={category.name === 'All' ? 30 : 52}
                                             />
                                         ) : (
                                             <div className="w-full h-12 rounded-xl bg-[#ECECEC] flex items-center justify-center text-gray-300">
@@ -278,12 +356,14 @@ const POS = () => {
                                             </div>
                                         )}
                                     </div>
+
                                     <div
                                         className="font-semibold text-[12px] leading-[15px] min-h-[30px] line-clamp-2 break-words"
                                         title={category.name}
                                     >
                                         {category.name}
                                     </div>
+
                                     <div
                                         className={`mt-auto text-xs leading-4 whitespace-nowrap ${
                                             isActive ? 'text-white/80' : 'text-gray-500'
@@ -298,23 +378,21 @@ const POS = () => {
                 </div>
 
                 <h3 className="text-[22px] font-bold text-[#5A3B2D] mb-5">
-                    All Product
+                    {productTitle}
                 </h3>
 
-                {productsError && (
+                {productError && (
                     <div className="mb-6 rounded-xl border border-red-200 bg-red-50 px-4 py-3 text-sm text-red-600">
-                        {productsError}
+                        {productError}
                     </div>
                 )}
 
-                <div className="grid grid-cols-1 md:grid-cols-2 xl:grid-cols-3 gap-6 pb-10">
-                    {productsLoading ? (
+                <div className="grid grid-cols-1 md:grid-cols-2 xl:grid-cols-3 gap-6 pb-6">
+                    {isProductLoading ? (
                         <div className="text-sm text-gray-500">Loading products...</div>
-                    ) : filteredProducts.length > 0 ? (
-                        filteredProducts.map((product) => {
-                            const isSelected = selectedItems.some(
-                                (item) => item.id === product.id
-                            );
+                    ) : paginatedProducts.length > 0 ? (
+                        paginatedProducts.map((product) => {
+                            const isSelected = selectedItems.some((item) => item.id === product.id);
 
                             return (
                                 <button
@@ -337,7 +415,7 @@ const POS = () => {
                                             <img
                                                 src={defaultImage}
                                                 alt="Default"
-                                                className="w-max=[12px] h-max-[12px] object-cover"
+                                                className="w-12 h-12 object-contain"
                                             />
                                         )}
                                     </div>
@@ -345,6 +423,7 @@ const POS = () => {
                                     <div className="font-semibold text-[#3A2C25] text-[14px] leading-6">
                                         {product.name}
                                     </div>
+
                                     <div className="text-[#5A3B2D] mt-1 font-medium text-[12px]">
                                         {formatRupiah(product.price)}
                                     </div>
@@ -357,9 +436,53 @@ const POS = () => {
                         </div>
                     )}
                 </div>
+
+                {!isProductLoading && filteredProducts.length > 0 && (
+                    <>
+                        <div className="text-sm text-gray-500 text-center mt-2">
+                            Showing {paginatedProducts.length} of {filteredProducts.length} products
+                        </div>
+
+                        {totalPages > 1 && (
+                            <div className="flex items-center justify-center gap-2 mt-6 pb-6">
+                                <button
+                                    type="button"
+                                    onClick={() => setCurrentPage((prev) => Math.max(prev - 1, 1))}
+                                    disabled={currentPage === 1}
+                                    className="px-4 py-2 rounded-xl border border-gray-300 bg-white text-sm font-medium text-[#5A3B2D] disabled:opacity-50 disabled:cursor-not-allowed hover:bg-gray-50"
+                                >
+                                    Prev
+                                </button>
+
+                                {Array.from({ length: totalPages }, (_, index) => index + 1).map((page) => (
+                                    <button
+                                        key={page}
+                                        type="button"
+                                        onClick={() => setCurrentPage(page)}
+                                        className={`w-10 h-10 rounded-xl text-sm font-semibold transition ${
+                                            currentPage === page
+                                                ? 'bg-[#6A4734] text-white'
+                                                : 'bg-white border border-gray-300 text-[#5A3B2D] hover:bg-gray-50'
+                                        }`}
+                                    >
+                                        {page}
+                                    </button>
+                                ))}
+
+                                <button
+                                    type="button"
+                                    onClick={() => setCurrentPage((prev) => Math.min(prev + 1, totalPages))}
+                                    disabled={currentPage === totalPages}
+                                    className="px-4 py-2 rounded-xl border border-gray-300 bg-white text-sm font-medium text-[#5A3B2D] disabled:opacity-50 disabled:cursor-not-allowed hover:bg-gray-50"
+                                >
+                                    Next
+                                </button>
+                            </div>
+                        )}
+                    </>
+                )}
             </section>
 
-            {/* SELECTED ITEMS */}
             <aside className="bg-[#F8F8F8] border-l border-gray-200 px-6 py-8 flex flex-col min-h-screen">
                 <div className="flex items-center justify-between mb-8">
                     <h2 className="text-[22px] font-bold text-[#5A3B2D]">
@@ -437,7 +560,7 @@ const POS = () => {
                                                 <img
                                                     src={defaultImage}
                                                     alt="Default"
-                                                    className="w-max=[12px] h-max-[12px] object-cover"
+                                                    className="w-8 h-8 object-contain"
                                                 />
                                             )}
                                         </div>
@@ -478,8 +601,8 @@ const POS = () => {
                             {selectedGuide
                                 ? `${selectedGuide.name} (${selectedGuide.commissionRate}%)`
                                 : guidesLoading
-                                ? 'Loading tour guides...'
-                                : 'Select Tour Guide (Optional)'}
+                                    ? 'Loading tour guides...'
+                                    : 'Select Tour Guide (Optional)'}
                         </span>
                         <ChevronDown className="w-5 h-5 text-gray-400" />
                     </button>
@@ -539,7 +662,9 @@ const POS = () => {
                         <div className="flex items-center justify-between text-sm">
                             <span>Guide Commission</span>
                             <span className="font-medium">
-                                {selectedGuide ? `${selectedGuide.commissionRate}% (${formatRupiah(guideCommissionAmount)})` : formatRupiah(0)}
+                                {selectedGuide
+                                    ? `${selectedGuide.commissionRate}% (${formatRupiah(guideCommissionAmount)})`
+                                    : formatRupiah(0)}
                             </span>
                         </div>
                     </div>

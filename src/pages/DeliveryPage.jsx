@@ -1,4 +1,5 @@
 import React, { useMemo, useRef, useState } from 'react';
+import toast from 'react-hot-toast';
 import {
     User,
     LogOut,
@@ -207,32 +208,32 @@ const DeliveryPage = () => {
         const notes = form.notes.trim();
 
         if (!recipientName) {
-            alert('Recipient name is required');
+            toast.error('Recipient name is required');
             return;
         }
 
         if (!destinationAddress) {
-            alert('Destination address is required');
+            toast.error('Destination address is required');
             return;
         }
 
         if (!courierPartner) {
-            alert('Courier partner is required');
+            toast.error('Courier partner is required');
             return;
         }
 
         if (!pickupDateTime) {
-            alert('Pickup date and time is required');
+            toast.error('Pickup date and time is required');
             return;
         }
 
         if (!packageWeight) {
-            alert('Package weight is required');
+            toast.error('Package weight is required');
             return;
         }
 
         if (!courierPriceNumber || courierPriceNumber < 0) {
-            alert('Courier price is required');
+            toast.error('Courier price is required');
             return;
         }
 
@@ -262,7 +263,7 @@ const DeliveryPage = () => {
             })
         );
 
-        alert('Delivery schedule saved in form');
+        toast.success('Delivery schedule saved in form');
     };
 
     return (

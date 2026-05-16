@@ -51,6 +51,7 @@ const useDeliveryCouriers = () => {
 
     return {
         couriers,
+        setCouriers,
         loading,
         error,
         refetch: fetchCouriers

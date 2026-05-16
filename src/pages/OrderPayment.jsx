@@ -12,6 +12,7 @@ import {
 } from 'lucide-react';
 import { useLocation, useNavigate } from 'react-router-dom';
 import useCheckout from '../hooks/useCheckout';
+import useReceiptStoreSettings from '../hooks/useReceiptStoreSettings';
 import toast from 'react-hot-toast';
 import { useAuth } from '../context/AuthContext';
 import logoImage from '../../public/logo.png';
@@ -24,19 +25,26 @@ const formatRupiah = (value) => {
 
 const TAX_PERCENT = 5;
 const STORE_PROFIT_PERCENT = 15;
+const EMPTY_ORDER_ITEMS = [];
 
 const OrderPaymentPage = () => {
     const navigate = useNavigate();
     const location = useLocation();
 
     const { logout, user } = useAuth();
+    const {
+        receiptSettings,
+        error: receiptSettingsError
+    } = useReceiptStoreSettings();
     const receiptPdfRef = useRef(null);
     const [receiptPopup, setReceiptPopup] = useState(null);
     const [isUserMenuOpen, setIsUserMenuOpen] = useState(false);
     const userMenuRef = useRef(null);
 
     const orderState = location.state || {};
-    const orderItems = Array.isArray(orderState.items) ? orderState.items : [];
+    const orderItems = useMemo(() => (
+        Array.isArray(orderState.items) ? orderState.items : EMPTY_ORDER_ITEMS
+    ), [orderState.items]);
     const selectedGuide = orderState.selectedGuide || null;
     const guideCommissionAmount = Number(orderState.guideCommissionAmount || 0);
 
@@ -59,6 +67,18 @@ const OrderPaymentPage = () => {
 
     const [paidAmountInput, setPaidAmountInput] = useState('');
     const isCashPayment = selectedPaymentMethod === 'cash';
+
+    const receiptBrand = useMemo(() => ({
+        shopNameOnReceipt: receiptSettings?.shopNameOnReceipt || 'KriyaLogic',
+        slogan: receiptSettings?.slogan || 'Empowering Craftsmanship with Digital Logic',
+        storeAddress: receiptSettings?.storeAddress || 'Jl. Ir. Sutami, Kemenuh, Kec. Sukawati, Kabupaten Gianyar, Bali',
+        footerGreeting: receiptSettings?.footerGreeting || 'Have a Nice Day!',
+        returnPolicyText: receiptSettings?.returnPolicyText || 'No return or exchange accepted without receipt',
+        whatsappNumber: receiptSettings?.whatsappNumber || '',
+        instagramUsername: receiptSettings?.instagramUsername || '',
+        isTaxed: Boolean(receiptSettings?.isTaxed),
+        logo: receiptSettings?.logo || logoImage
+    }), [receiptSettings]);
 
     const [deliveryForm, setDeliveryForm] = useState({
         packageName: '',
@@ -327,6 +347,10 @@ const OrderPaymentPage = () => {
                 return;
             }
 
+            if (receiptSettingsError) {
+                toast.error(receiptSettingsError);
+            }
+
             setReceiptPopup(result.data);
         } catch (error) {
             console.error('Payment error:', error);
@@ -370,7 +394,7 @@ const OrderPaymentPage = () => {
 
             pdf.addImage(imgData, 'PNG', margin, margin, contentWidth, contentHeight);
             pdf.save(`receipt-${receiptPopup?.receiptNumber || 'transaction'}.pdf`);
-        } catch (error) {
+        } catch {
             toast.error('Failed to generate receipt PDF');
         } finally {
             const guideCommissionEl = receiptPdfRef.current?.querySelector('.receipt-guide-commission');
@@ -767,22 +791,22 @@ const OrderPaymentPage = () => {
                             <div className="text-center border-b border-dashed border-[#D9D9D9] pb-4 mb-4">
                                 <div className="w-20 h-20 sm:w-24 sm:h-24 mx-auto mb-3 flex items-center justify-center">
                                     <img
-                                        src={logoImage}
-                                        alt="KriyaLogic Logo"
+                                        src={receiptBrand.logo}
+                                        alt={`${receiptBrand.shopNameOnReceipt} Logo`}
                                         className="max-w-full max-h-full object-contain"
                                     />
                                 </div>
 
                                 <h2 className="text-2xl sm:text-3xl font-bold text-[#5A3B2D] leading-tight">
-                                    KriyaLogic
+                                    {receiptBrand.shopNameOnReceipt}
                                 </h2>
 
                                 <p className="text-sm sm:text-base text-[#6B4C3B] mt-2">
-                                    Empowering Craftsmanship with Digital Logic
+                                    {receiptBrand.slogan}
                                 </p>
 
                                 <p className="text-sm text-[#6B4C3B] mt-2">
-                                    Jl. Ir. Sutami, Kemenuh, Kec. Sukawati, Kabupaten Gianyar, Bali
+                                    {receiptBrand.storeAddress}
                                 </p>
                             </div>
 
@@ -867,6 +891,11 @@ const OrderPaymentPage = () => {
                                     </div>
 
                                     <div className="flex justify-between gap-4">
+                                        <span>Tax</span>
+                                        <span className="text-right">{receiptBrand.isTaxed ? 'Included' : 'Not taxed'}</span>
+                                    </div>
+
+                                    <div className="flex justify-between gap-4">
                                         <span>Delivery</span>
                                         <span className="text-right">
                                             {receiptPopup.deliveryFee ? formatRupiah(receiptPopup.deliveryFee) : '-'}
@@ -884,17 +913,21 @@ const OrderPaymentPage = () => {
 
                             <div className="text-center border-t border-dashed border-[#D9D9D9] pt-4 mt-4">
                                 <h2 className="text-xl sm:text-2xl font-bold text-[#5A3B2D]">
-                                    Have a Nice Day!
+                                    {receiptBrand.footerGreeting}
                                 </h2>
 
                                 <p className="text-sm sm:text-base text-[#6B4C3B] mt-2">
-                                    No return or exchange accepted without receipt
+                                    {receiptBrand.returnPolicyText}
                                 </p>
 
                                 <div className="mt-4 text-sm sm:text-base text-[#6B4C3B] space-y-1">
                                     <p className="font-semibold text-[#5A3B2D]">Get in touch</p>
-                                    <p>@wahanagiri</p>
-                                    <p>+62001234567</p>
+                                    {receiptBrand.instagramUsername && (
+                                        <p>@{receiptBrand.instagramUsername}</p>
+                                    )}
+                                    {receiptBrand.whatsappNumber && (
+                                        <p>+{receiptBrand.whatsappNumber}</p>
+                                    )}
                                 </div>
                             </div>
                         </div>

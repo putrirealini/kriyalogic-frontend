@@ -1,15 +1,16 @@
-import React, { useMemo, useRef, useState } from 'react';
-import toast from 'react-hot-toast';
+import React, { useEffect, useMemo, useRef, useState } from 'react';
 import {
+    ChevronDown,
+    PlusCircle,
     User,
-    LogOut,
-    PackageCheck,
+    Search,
     Truck,
-    CalendarClock,
-    Search
+    CalendarClock
 } from 'lucide-react';
-import { useAuth } from '../context/AuthContext';
-import { useNavigate } from 'react-router-dom';
+import toast from 'react-hot-toast';
+import useDeliveryOrders from '../hooks/useDeliveryOrders';
+import useDeliveryCouriers from '../hooks/useDeliveryCouriers';
+import useUpdateDeliverySchedule from '../hooks/useUpdateDeliverySchedule';
 
 const STORE_PROFIT_PERCENT = 15;
 
@@ -29,6 +30,7 @@ const formatScheduleText = (value) => {
     if (!value) return '-';
     const date = new Date(value);
     if (Number.isNaN(date.getTime())) return '-';
+
     return date.toLocaleString('id-ID', {
         day: '2-digit',
         month: 'short',
@@ -39,110 +41,101 @@ const formatScheduleText = (value) => {
 };
 
 const getStatusLabel = (status) => {
-    switch (status) {
-        case 'scheduled':
-            return 'Scheduled';
-        case 'to_be_scheduled':
-        default:
-            return 'To be scheduled';
-    }
+    return status === 'scheduled' ? 'Scheduled' : 'To be scheduled';
 };
 
 const getStatusBadgeClass = (status) => {
-    if (status === 'scheduled') {
-        return 'bg-[#EAF8EA] text-[#56B95A]';
-    }
-
-    return 'bg-[#FFF1F1] text-[#FF4D4F]';
+    return status === 'scheduled'
+        ? 'bg-[#EAF8EA] text-[#56B95A]'
+        : 'bg-[#FFF1F1] text-[#FF4D4F]';
 };
 
-const initialDeliveryOrders = [
-    {
-        _id: '1',
-        receiptNumber: 'RCPT-20260405-0002',
-        itemName: 'Big Garuda Statue',
-        customerName: 'Yoga Kusuma',
-        deliveryFee: 1015000,
-        delivery: {
-            packageName: 'Big Garuda Statue',
-            recipientName: '',
-            destinationAddress: '',
-            courierPartner: '',
-            pickupDateTime: '',
-            packageWeight: '',
-            courierPrice: 882608.7,
-            storeProfit: 132391.3,
-            totalPrice: 1015000,
-            trackingNumber: '',
-            notes: '',
-            status: 'to_be_scheduled'
-        }
-    },
-    {
-        _id: '2',
-        receiptNumber: 'RCPT-20260405-0003',
-        itemName: 'Barong Mask',
-        customerName: 'Yoga Kusuma',
-        deliveryFee: 1015000,
-        delivery: {
-            packageName: 'Barong Mask',
-            recipientName: 'Yoga Kusuma',
-            destinationAddress: 'Jl. Raya Ubud No. 18, Gianyar, Bali',
-            courierPartner: 'J&T Cargo',
-            pickupDateTime: '2026-04-24T10:00:00',
-            packageWeight: '8 kg',
-            courierPrice: 882608.7,
-            storeProfit: 132391.3,
-            totalPrice: 1015000,
-            trackingNumber: 'JT202604240001',
-            notes: 'Handle with care',
-            status: 'scheduled'
-        }
-    }
-];
+const EMPTY_DELIVERY_FORM = {
+    recipientName: '',
+    destinationAddress: '',
+    courierPartner: '',
+    pickupDateTime: '',
+    packageWeight: '',
+    courierPrice: '',
+    trackingNumber: '',
+    notes: ''
+};
+
+const buildDeliveryForm = (order) => {
+    if (!order) return EMPTY_DELIVERY_FORM;
+
+    const delivery = order.delivery || {};
+
+    return {
+        recipientName: delivery.recipientName || order.customerName || '',
+        destinationAddress: delivery.destinationAddress || '',
+        courierPartner: delivery.courierPartner || '',
+        pickupDateTime: formatDateTimeValue(delivery.pickupDateTime),
+        packageWeight: delivery.packageWeight || '',
+        courierPrice: delivery.courierPrice ? String(Math.round(delivery.courierPrice)) : '',
+        trackingNumber: delivery.trackingNumber || '',
+        notes: delivery.notes || ''
+    };
+};
 
 const DeliveryPage = () => {
-    const { user, logout } = useAuth();
-    const navigate = useNavigate();
-    const userMenuRef = useRef(null);
-
-    const [isUserMenuOpen, setIsUserMenuOpen] = useState(false);
     const [tab, setTab] = useState('all');
     const [search, setSearch] = useState('');
-    const [orders, setOrders] = useState(initialDeliveryOrders);
-    const [selectedOrderId, setSelectedOrderId] = useState(initialDeliveryOrders[0]?._id || null);
+    const [selectedOrderId, setSelectedOrderId] = useState(null);
+
+    const {
+        orders,
+        loading: ordersLoading,
+        error: ordersError,
+        setOrders
+    } = useDeliveryOrders();
+
+    const {
+        couriers,
+        setCouriers,
+        loading: couriersLoading,
+        error: couriersError
+    } = useDeliveryCouriers();
+
+    const {
+        updateDeliverySchedule,
+        loading: savingSchedule,
+        error: updateError
+    } = useUpdateDeliverySchedule();
+
+    const [formDraft, setFormDraft] = useState(null);
+    const [isCourierOpen, setIsCourierOpen] = useState(false);
+    const courierDropdownRef = useRef(null);
+
+    useEffect(() => {
+        const handleClickOutside = (event) => {
+            if (
+                courierDropdownRef.current &&
+                !courierDropdownRef.current.contains(event.target)
+            ) {
+                setIsCourierOpen(false);
+            }
+        };
+
+        document.addEventListener('mousedown', handleClickOutside);
+        return () => {
+            document.removeEventListener('mousedown', handleClickOutside);
+        };
+    }, []);
+
+    const effectiveSelectedOrderId = selectedOrderId || orders[0]?._id || null;
 
     const selectedOrder = useMemo(() => {
-        return orders.find((order) => order._id === selectedOrderId) || null;
-    }, [orders, selectedOrderId]);
+        return orders.find((order) => order._id === effectiveSelectedOrderId) || null;
+    }, [orders, effectiveSelectedOrderId]);
 
-    const [form, setForm] = useState({
-        recipientName: '',
-        destinationAddress: '',
-        courierPartner: '',
-        pickupDateTime: '',
-        packageWeight: '',
-        courierPrice: '',
-        trackingNumber: '',
-        notes: ''
-    });
-
-    React.useEffect(() => {
-        if (!selectedOrder) return;
-
-        setForm({
-            recipientName: selectedOrder.delivery?.recipientName || selectedOrder.customerName || '',
-            destinationAddress: selectedOrder.delivery?.destinationAddress || '',
-            courierPartner: selectedOrder.delivery?.courierPartner || '',
-            pickupDateTime: formatDateTimeValue(selectedOrder.delivery?.pickupDateTime),
-            packageWeight: selectedOrder.delivery?.packageWeight || '',
-            courierPrice: selectedOrder.delivery?.courierPrice
-                ? String(Math.round(selectedOrder.delivery.courierPrice))
-                : '',
-            trackingNumber: selectedOrder.delivery?.trackingNumber || '',
-            notes: selectedOrder.delivery?.notes || ''
-        });
+    const selectedOrderForm = useMemo(() => {
+        return buildDeliveryForm(selectedOrder);
     }, [selectedOrder]);
+
+    const form = formDraft?.orderId === effectiveSelectedOrderId
+        ? formDraft.values
+        : selectedOrderForm;
 
     const filteredOrders = useMemo(() => {
         return orders.filter((order) => {
@@ -158,45 +151,143 @@ const DeliveryPage = () => {
             const keyword = search.trim().toLowerCase();
             const matchesSearch =
                 !keyword ||
-                order.itemName.toLowerCase().includes(keyword) ||
-                order.customerName.toLowerCase().includes(keyword) ||
-                order.receiptNumber.toLowerCase().includes(keyword);
+                String(order.itemName || '').toLowerCase().includes(keyword) ||
+                String(order.customerName || '').toLowerCase().includes(keyword) ||
+                String(order.receiptNumber || '').toLowerCase().includes(keyword);
 
             return matchesTab && matchesSearch;
         });
     }, [orders, tab, search]);
 
     const shippingRevenue = useMemo(() => {
-        return orders.reduce((sum, order) => sum + Number(order.delivery?.totalPrice || order.deliveryFee || 0), 0);
+        return orders.reduce((sum, order) => {
+            return sum + Number(order.delivery?.totalPrice || order.deliveryFee || 0);
+        }, 0);
     }, [orders]);
 
     const shippingProfit = useMemo(() => {
-        return orders.reduce((sum, order) => sum + Number(order.delivery?.storeProfit || 0), 0);
+        return orders.reduce((sum, order) => {
+            return sum + Number(order.delivery?.storeProfit || 0);
+        }, 0);
     }, [orders]);
 
     const courierPriceNumber = Number(form.courierPrice || 0);
     const storeProfit = courierPriceNumber * (STORE_PROFIT_PERCENT / 100);
     const totalPrice = courierPriceNumber + storeProfit;
 
-    const handleLogout = () => {
-        logout();
-        navigate('/login');
-    };
+    const normalizedCouriers = useMemo(() => {
+        const mapped = couriers
+            .map((courier) => {
+                const name = String(courier.name || courier.courierName || '').trim();
+                if (!name) return null;
+
+                return {
+                    ...courier,
+                    name
+                };
+            })
+            .filter(Boolean);
+
+        const uniqueMap = new Map();
+        mapped.forEach((courier) => {
+            const key = courier.name.toLowerCase();
+            if (!uniqueMap.has(key)) {
+                uniqueMap.set(key, courier);
+            }
+        });
+
+        return Array.from(uniqueMap.values());
+    }, [couriers]);
+
+    const courierKeyword = form.courierPartner.trim();
+    const filteredCouriers = useMemo(() => {
+        if (!courierKeyword) return normalizedCouriers;
+
+        const keyword = courierKeyword.toLowerCase();
+        return normalizedCouriers.filter((courier) =>
+            courier.name.toLowerCase().includes(keyword)
+        );
+    }, [normalizedCouriers, courierKeyword]);
+
+    const exactCourierExists = useMemo(() => {
+        const keyword = courierKeyword.toLowerCase();
+        if (!keyword) return false;
+
+        return normalizedCouriers.some((courier) => courier.name.toLowerCase() === keyword);
+    }, [normalizedCouriers, courierKeyword]);
+
+    const originalCourierExists = useMemo(() => {
+        const keyword = courierKeyword.toLowerCase();
+        if (!keyword) return false;
+
+        return couriers.some((courier) => {
+            const name = String(courier.name || courier.courierName || '').trim().toLowerCase();
+            return name === keyword;
+        });
+    }, [couriers, courierKeyword]);
 
     const handleSelectOrder = (order) => {
         setSelectedOrderId(order._id);
+        setFormDraft({
+            orderId: order._id,
+            values: buildDeliveryForm(order)
+        });
     };
 
     const handleChange = (e) => {
         const { name, value } = e.target;
 
-        setForm((prev) => ({
-            ...prev,
-            [name]: name === 'courierPrice' ? value.replace(/[^\d]/g, '') : value
-        }));
+        setFormDraft({
+            orderId: effectiveSelectedOrderId,
+            values: {
+                ...form,
+                [name]: name === 'courierPrice' ? value.replace(/[^\d]/g, '') : value
+            }
+        });
     };
 
-    const handleSetSchedule = () => {
+    const updateFormField = (name, value) => {
+        setFormDraft({
+            orderId: effectiveSelectedOrderId,
+            values: {
+                ...form,
+                [name]: value
+            }
+        });
+    };
+
+    const handleSelectCourier = (courierName) => {
+        updateFormField('courierPartner', courierName);
+        setIsCourierOpen(false);
+    };
+
+    const handleAddCourier = () => {
+        const courierPartner = form.courierPartner.trim();
+        if (!courierPartner) {
+            toast.error('Courier partner is required');
+            return;
+        }
+
+        if (exactCourierExists) {
+            setIsCourierOpen(false);
+            return;
+        }
+
+        setCouriers((prev) => [
+            ...prev,
+            {
+                _id: `new-${Date.now()}`,
+                name: courierPartner,
+                courierName: courierPartner,
+                isNew: true
+            }
+        ]);
+        updateFormField('courierPartner', courierPartner);
+        setIsCourierOpen(false);
+        toast.success('Courier partner added to form');
+    };
+
+    const handleSetSchedule = async () => {
         if (!selectedOrder) return;
 
         const recipientName = form.recipientName.trim();
@@ -237,33 +328,51 @@ const DeliveryPage = () => {
             return;
         }
 
-        setOrders((prev) =>
-            prev.map((order) => {
-                if (order._id !== selectedOrder._id) return order;
+        const payload = {
+            recipientName,
+            destinationAddress,
+            courierPartner,
+            isNewCourierPartner: !originalCourierExists,
+            pickupDateTime,
+            packageWeight,
+            courierPrice: courierPriceNumber,
+            storeProfit,
+            totalPrice,
+            trackingNumber,
+            notes
+        };
 
-                return {
-                    ...order,
-                    deliveryFee: totalPrice,
-                    delivery: {
-                        ...order.delivery,
-                        packageName: order.delivery?.packageName || order.itemName,
-                        recipientName,
-                        destinationAddress,
-                        courierPartner,
-                        pickupDateTime,
-                        packageWeight,
-                        courierPrice: courierPriceNumber,
-                        storeProfit,
-                        totalPrice,
-                        trackingNumber,
-                        notes,
-                        status: 'scheduled'
+        const result = await updateDeliverySchedule(selectedOrder._id, payload);
+
+        if (!result.success) {
+            toast.error(result.error || 'Failed to update delivery');
+            return;
+        }
+
+        const updatedDelivery =
+            result.data?.data?.delivery || {
+                ...selectedOrder.delivery,
+                ...payload,
+                status: 'scheduled'
+            };
+
+        setOrders((prev) =>
+            prev.map((order) =>
+                order._id === selectedOrder._id
+                    ? {
+                        ...order,
+                        deliveryFee: updatedDelivery.totalPrice || totalPrice,
+                        delivery: {
+                            ...order.delivery,
+                            ...updatedDelivery,
+                            status: updatedDelivery.status || 'scheduled'
+                        }
                     }
-                };
-            })
+                    : order
+            )
         );
 
-        toast.success('Delivery schedule saved in form');
+        toast.success('Delivery schedule updated');
     };
 
     return (
@@ -297,43 +406,22 @@ const DeliveryPage = () => {
                         </h2>
                     </div>
 
-                    <div className="relative" ref={userMenuRef}>
-                        <button
-                            onClick={() => setIsUserMenuOpen((prev) => !prev)}
-                            className="w-10 h-10 bg-[#4E3629] rounded-full flex items-center justify-center text-white hover:opacity-90 transition-opacity focus:outline-none shadow-sm"
-                        >
-                            <User size={20} />
-                        </button>
-
-                        {isUserMenuOpen && (
-                            <div className="absolute top-full right-0 mt-2 w-56 bg-white rounded-xl shadow-lg border border-gray-100 py-2 z-50">
-                                <div className="px-4 py-3 border-b border-gray-100">
-                                    <p className="text-sm font-bold text-gray-900 truncate">
-                                        {user?.username || 'User'}
-                                    </p>
-                                    <p className="text-xs text-gray-500 truncate">
-                                        {user?.email || 'user@example.com'}
-                                    </p>
-                                    <p className="text-[10px] uppercase tracking-wider font-semibold text-[#6A4734] mt-1">
-                                        {user?.role || 'Cashier'}
-                                    </p>
-                                </div>
-
-                                <button
-                                    onClick={handleLogout}
-                                    className="w-full text-left px-4 py-2 text-sm text-red-600 hover:bg-red-50 flex items-center gap-2 transition-colors cursor-pointer"
-                                >
-                                    <LogOut size={16} />
-                                    Logout
-                                </button>
-                            </div>
-                        )}
-                    </div>
+                    <button
+                        type="button"
+                        className="w-10 h-10 bg-black rounded-full flex items-center justify-center text-white"
+                    >
+                        <User className="w-5 h-5" />
+                    </button>
                 </div>
             </div>
 
+            {(ordersError || couriersError || updateError) && (
+                <div className="mb-4 rounded-xl bg-red-50 border border-red-200 text-red-600 px-4 py-3 text-sm">
+                    {ordersError || couriersError || updateError}
+                </div>
+            )}
+
             <div className="grid grid-cols-1 xl:grid-cols-[1.25fr_0.95fr] gap-6">
-                {/* LEFT */}
                 <section>
                     <div className="flex items-center justify-between gap-4 mb-6">
                         <div className="bg-[#F1F1F1] rounded-full p-1 flex items-center gap-1">
@@ -386,94 +474,99 @@ const DeliveryPage = () => {
                         </div>
                     </div>
 
-                    <div className="space-y-4">
-                        {filteredOrders.map((order) => {
-                            const status = order.delivery?.status || 'to_be_scheduled';
-                            const isActive = selectedOrderId === order._id;
+                    {ordersLoading ? (
+                        <div className="rounded-3xl bg-[#F8F8F8] border border-gray-200 p-8 text-center text-gray-500">
+                            Loading delivery orders...
+                        </div>
+                    ) : (
+                        <div className="space-y-4">
+                            {filteredOrders.map((order) => {
+                                const status = order.delivery?.status || 'to_be_scheduled';
+                                const isActive = selectedOrderId === order._id;
 
-                            return (
-                                <button
-                                    key={order._id}
-                                    type="button"
-                                    onClick={() => handleSelectOrder(order)}
-                                    className={`w-full text-left rounded-[34px] border bg-white shadow-sm transition overflow-hidden ${
-                                        isActive
-                                            ? 'border-[#D4C7BE] ring-2 ring-[#6A4734]/20'
-                                            : 'border-gray-200'
-                                    }`}
-                                >
-                                    <div className="grid grid-cols-[10px_1fr]">
-                                        <div className="bg-[#6A4734]" />
+                                return (
+                                    <button
+                                        key={order._id}
+                                        type="button"
+                                        onClick={() => handleSelectOrder(order)}
+                                        className={`w-full text-left rounded-[34px] border bg-white shadow-sm transition overflow-hidden ${
+                                            isActive
+                                                ? 'border-[#D4C7BE] ring-2 ring-[#6A4734]/20'
+                                                : 'border-gray-200'
+                                        }`}
+                                    >
+                                        <div className="grid grid-cols-[10px_1fr]">
+                                            <div className="bg-[#6A4734]" />
 
-                                        <div className="p-6">
-                                            <div className="flex items-start justify-between gap-4">
-                                                <div>
-                                                    <p className="text-xs text-[#B0A29A] font-semibold">
-                                                        Receipt No #{order.receiptNumber}
-                                                    </p>
-                                                    <h3 className="text-[18px] font-bold text-[#5A3B2D] mt-1">
-                                                        {order.itemName}
-                                                    </h3>
-                                                    <p className="text-sm text-[#A08F85] mt-1">
-                                                        {order.customerName}
-                                                    </p>
-                                                </div>
-
-                                                <div className="text-right">
-                                                    <div className={`inline-flex px-3 py-1 rounded-full text-xs font-bold ${getStatusBadgeClass(status)}`}>
-                                                        {getStatusLabel(status)}
+                                            <div className="p-6">
+                                                <div className="flex items-start justify-between gap-4">
+                                                    <div>
+                                                        <p className="text-xs text-[#B0A29A] font-semibold">
+                                                            Receipt No #{order.receiptNumber}
+                                                        </p>
+                                                        <h3 className="text-[18px] font-bold text-[#5A3B2D] mt-1">
+                                                            {order.itemName}
+                                                        </h3>
+                                                        <p className="text-sm text-[#A08F85] mt-1">
+                                                            {order.customerName}
+                                                        </p>
                                                     </div>
-                                                    <h4 className="text-[18px] font-bold text-[#5A3B2D] mt-3">
-                                                        {formatRupiah(order.delivery?.totalPrice || order.deliveryFee || 0)}
-                                                    </h4>
-                                                    <p className="text-sm text-[#A08F85]">
-                                                        Paid in POS
-                                                    </p>
+
+                                                    <div className="text-right">
+                                                        <div className={`inline-flex px-3 py-1 rounded-full text-xs font-bold ${getStatusBadgeClass(status)}`}>
+                                                            {getStatusLabel(status)}
+                                                        </div>
+                                                        <h4 className="text-[18px] font-bold text-[#5A3B2D] mt-3">
+                                                            {formatRupiah(order.delivery?.totalPrice || order.deliveryFee || 0)}
+                                                        </h4>
+                                                        <p className="text-sm text-[#A08F85]">
+                                                            Paid in POS
+                                                        </p>
+                                                    </div>
                                                 </div>
+
+                                                {status === 'scheduled' && (
+                                                    <div className="mt-5 rounded-[22px] border border-dashed border-[#D8D8D8] px-5 py-4 grid grid-cols-2 gap-4">
+                                                        <div className="flex items-center gap-3">
+                                                            <Truck className="w-4 h-4 text-[#B59A8A]" />
+                                                            <div>
+                                                                <p className="text-[10px] tracking-[2px] font-bold text-[#B0A29A] uppercase">
+                                                                    Courier
+                                                                </p>
+                                                                <p className="text-sm font-semibold text-[#5A3B2D]">
+                                                                    {order.delivery?.courierPartner || '-'}
+                                                                </p>
+                                                            </div>
+                                                        </div>
+
+                                                        <div className="flex items-center gap-3">
+                                                            <CalendarClock className="w-4 h-4 text-[#B59A8A]" />
+                                                            <div>
+                                                                <p className="text-[10px] tracking-[2px] font-bold text-[#B0A29A] uppercase">
+                                                                    Estimated Arrival
+                                                                </p>
+                                                                <p className="text-sm font-semibold text-[#5A3B2D]">
+                                                                    {formatScheduleText(order.delivery?.pickupDateTime)}
+                                                                </p>
+                                                            </div>
+                                                        </div>
+                                                    </div>
+                                                )}
                                             </div>
-
-                                            {status === 'scheduled' && (
-                                                <div className="mt-5 rounded-[22px] border border-dashed border-[#D8D8D8] px-5 py-4 grid grid-cols-2 gap-4">
-                                                    <div className="flex items-center gap-3">
-                                                        <Truck className="w-4 h-4 text-[#B59A8A]" />
-                                                        <div>
-                                                            <p className="text-[10px] tracking-[2px] font-bold text-[#B0A29A] uppercase">
-                                                                Courier
-                                                            </p>
-                                                            <p className="text-sm font-semibold text-[#5A3B2D]">
-                                                                {order.delivery?.courierPartner || '-'}
-                                                            </p>
-                                                        </div>
-                                                    </div>
-
-                                                    <div className="flex items-center gap-3">
-                                                        <CalendarClock className="w-4 h-4 text-[#B59A8A]" />
-                                                        <div>
-                                                            <p className="text-[10px] tracking-[2px] font-bold text-[#B0A29A] uppercase">
-                                                                Estimated Arrival
-                                                            </p>
-                                                            <p className="text-sm font-semibold text-[#5A3B2D]">
-                                                                {formatScheduleText(order.delivery?.pickupDateTime)}
-                                                            </p>
-                                                        </div>
-                                                    </div>
-                                                </div>
-                                            )}
                                         </div>
-                                    </div>
-                                </button>
-                            );
-                        })}
+                                    </button>
+                                );
+                            })}
 
-                        {filteredOrders.length === 0 && (
-                            <div className="rounded-3xl bg-[#F8F8F8] border border-gray-200 p-8 text-center text-gray-500">
-                                No delivery data found
-                            </div>
-                        )}
-                    </div>
+                            {filteredOrders.length === 0 && (
+                                <div className="rounded-3xl bg-[#F8F8F8] border border-gray-200 p-8 text-center text-gray-500">
+                                    No delivery data found
+                                </div>
+                            )}
+                        </div>
+                    )}
                 </section>
 
-                {/* RIGHT */}
                 <aside className="bg-[#F5F5F5] rounded-[28px] p-6 shadow-sm h-fit">
                     <h2 className="text-[18px] font-bold text-[#5A3B2D] mb-5">
                         Package Information
@@ -511,14 +604,67 @@ const DeliveryPage = () => {
                                 <label className="block text-sm text-[#7D6E66] mb-2">
                                     Select Courier Partner
                                 </label>
-                                <input
-                                    type="text"
-                                    name="courierPartner"
-                                    value={form.courierPartner}
-                                    onChange={handleChange}
-                                    placeholder="Example: J&T Cargo"
-                                    className="w-full h-[46px] rounded-xl border border-gray-200 bg-white shadow-sm px-4 outline-none focus:ring-2 focus:ring-[#6A4734]"
-                                />
+                                <div className="relative" ref={courierDropdownRef}>
+                                    <input
+                                        type="text"
+                                        name="courierPartner"
+                                        value={form.courierPartner}
+                                        onChange={(e) => {
+                                            handleChange(e);
+                                            setIsCourierOpen(true);
+                                        }}
+                                        onFocus={() => setIsCourierOpen(true)}
+                                        placeholder={couriersLoading ? 'Loading couriers...' : 'Type or select courier partner'}
+                                        disabled={couriersLoading}
+                                        className="w-full h-[46px] rounded-xl border border-gray-200 bg-white shadow-sm px-4 pr-10 outline-none focus:ring-2 focus:ring-[#6A4734] disabled:bg-[#FAFAFA]"
+                                    />
+
+                                    <button
+                                        type="button"
+                                        onClick={() => setIsCourierOpen((prev) => !prev)}
+                                        disabled={couriersLoading}
+                                        className="absolute right-3 top-1/2 -translate-y-1/2 text-[#7D6E66] disabled:opacity-50"
+                                        aria-label="Toggle courier list"
+                                    >
+                                        <ChevronDown className="w-4 h-4" />
+                                    </button>
+
+                                    {isCourierOpen && !couriersLoading && (
+                                        <div className="absolute left-0 right-0 top-full z-30 mt-2 max-h-56 overflow-y-auto rounded-xl border border-gray-200 bg-white shadow-lg">
+                                            {filteredCouriers.length > 0 && (
+                                                <div className="py-1">
+                                                    {filteredCouriers.map((courier) => (
+                                                        <button
+                                                            key={courier._id || courier.id || courier.name}
+                                                            type="button"
+                                                            onClick={() => handleSelectCourier(courier.name)}
+                                                            className="w-full px-4 py-2 text-left text-sm text-[#4E3629] hover:bg-[#F5F5F5]"
+                                                        >
+                                                            {courier.name}
+                                                        </button>
+                                                    ))}
+                                                </div>
+                                            )}
+
+                                            {courierKeyword && !exactCourierExists && (
+                                                <button
+                                                    type="button"
+                                                    onClick={handleAddCourier}
+                                                    className="flex w-full items-center gap-2 border-t border-gray-100 px-4 py-3 text-left text-sm font-semibold text-[#6A4734] hover:bg-[#F5F5F5]"
+                                                >
+                                                    <PlusCircle className="w-4 h-4" />
+                                                    Tambah "{courierKeyword}"
+                                                </button>
+                                            )}
+
+                                            {filteredCouriers.length === 0 && (!courierKeyword || exactCourierExists) && (
+                                                <div className="px-4 py-3 text-sm text-gray-500">
+                                                    No courier found
+                                                </div>
+                                            )}
+                                        </div>
+                                    )}
+                                </div>
                             </div>
 
                             <div>
@@ -618,9 +764,10 @@ const DeliveryPage = () => {
                             <button
                                 type="button"
                                 onClick={handleSetSchedule}
-                                className="w-full h-[48px] rounded-xl bg-[#6A4734] text-white font-semibold hover:opacity-90 transition"
+                                disabled={savingSchedule}
+                                className="w-full h-[48px] rounded-xl bg-[#6A4734] text-white font-semibold hover:opacity-90 transition disabled:opacity-60"
                             >
-                                Set Schedule
+                                {savingSchedule ? 'Saving...' : 'Set Schedule'}
                             </button>
                         </div>
                     ) : (

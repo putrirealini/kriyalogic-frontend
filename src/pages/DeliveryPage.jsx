@@ -482,7 +482,7 @@ const DeliveryPage = () => {
                         <div className="space-y-4">
                             {filteredOrders.map((order) => {
                                 const status = order.delivery?.status || 'to_be_scheduled';
-                                const isActive = selectedOrderId === order._id;
+                                const isActive = effectiveSelectedOrderId === order._id;
 
                                 return (
                                     <button
